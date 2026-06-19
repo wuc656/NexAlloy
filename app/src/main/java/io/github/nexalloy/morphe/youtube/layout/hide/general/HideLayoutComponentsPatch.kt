@@ -391,7 +391,7 @@ val HideLayoutComponents = patch(
         after {
             val view = it.result as View
             when (it.args[0] as Int) {
-                live_chat_ticker_item -> LayoutComponentsFilter.hideLiveChatDonatorsBar(view)
+                live_chat_ticker_item -> CommentsFilter.hideLiveChatDonatorsBar(view)
                 donation_companion -> LayoutComponentsFilter.hideCrowdfundingBox(view)
                 album_card -> LayoutComponentsFilter.hideAlbumCard(view)
                 content_pill, bar -> LayoutComponentsFilter.hideLatestVideosButton(view)

@@ -1,6 +1,6 @@
 package io.github.nexalloy.morphe.youtube.interaction.copyvideourl
 
-import app.morphe.extension.youtube.videoplayer.CopyVideoURLButton
+import app.morphe.extension.youtube.videoplayer.CopyVideoLinkButton
 import io.github.nexalloy.R
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceCategory
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceScreenPreference.Sorting
@@ -36,16 +36,16 @@ val CopyVideoUrlButton = patch(
             )
         )
     )
-    addPlayerBottomButton(CopyVideoURLButton::initializeButton)
+    addPlayerBottomButton(CopyVideoLinkButton::initializeButton)
 
     addLegacyBottomControl(R.layout.morphe_copy_video_url_button)
     initializeLegacyBottomControl(
         ControlInitializer(
             R.id.morphe_copy_video_url_button,
-            CopyVideoURLButton::initializeLegacyButton,
-            CopyVideoURLButton::setVisibility,
-            CopyVideoURLButton::setVisibilityImmediate,
-            CopyVideoURLButton::setVisibilityNegatedImmediate
+            CopyVideoLinkButton::initializeLegacyButton,
+            CopyVideoLinkButton::setVisibility,
+            CopyVideoLinkButton::setVisibilityImmediate,
+            CopyVideoLinkButton::setVisibilityNegatedImmediate
         )
     )
 }
