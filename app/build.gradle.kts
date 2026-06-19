@@ -150,6 +150,8 @@ dependencies {
     compileOnly(project(":stub"))
     implementation(libs.androidx.javascriptengine)
     implementation(libs.protobuf.javalite)
+    implementation(libs.collections4)
+    implementation(libs.lang3)
 }
 
 protobuf {
