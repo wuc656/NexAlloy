@@ -1,5 +1,6 @@
 package io.github.nexalloy
 
+import io.github.nexalloy.facebook.FacebookPatches
 import io.github.nexalloy.hoodles.morphe.alltrails.AllTrailsPatches
 import io.github.nexalloy.morphe.music.YTMusicPatches
 import io.github.nexalloy.morphe.reddit.RedditPatches
@@ -20,6 +21,7 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Instagram", "com.instagram.android", MetaPatches),
     AppPatchInfo("Threads", "com.instagram.barcelona", MetaPatches),
     AppPatchInfo("Strava", "com.strava", StravaPatches),
+    AppPatchInfo("Facebook", "com.facebook.katana", FacebookPatches),
     AppPatchInfo("AllTrails", "com.alltrails.alltrails", AllTrailsPatches),
 )
 
