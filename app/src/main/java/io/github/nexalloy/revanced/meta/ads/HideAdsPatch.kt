@@ -6,5 +6,13 @@ import io.github.nexalloy.patch
 val HideAds = patch(
     name = "Hide ads",
 ) {
-    ::adInjectorFingerprint.hookMethod(XC_MethodReplacement.DO_NOTHING)
+    // Try Instagram fingerprint (returns boolean)
+    runCatching {
+        ::igAdInjectorFingerprint.hookMethod(XC_MethodReplacement.DO_NOTHING)
+    }
+
+    // Try Threads fingerprint (returns void)
+    runCatching {
+        ::threadsAdInjectorFingerprint.hookMethod(XC_MethodReplacement.DO_NOTHING)
+    }
 }
