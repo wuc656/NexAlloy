@@ -136,6 +136,18 @@ object FacebookSettingsDialog {
                     defaultValue = true
                 ),
                 SettingItem(
+                    FacebookSettings.KEY_HOLD_REEL_FOR_2X,
+                    "Hold a reel for 2x",
+                    "Holding a reel plays it at double speed until you let go.",
+                    defaultValue = false
+                ),
+                SettingItem(
+                    FacebookSettings.KEY_DEFAULT_PLAYBACK_QUALITY,
+                    "Default playback quality",
+                    "Plays videos, reels and video stories at the highest quality available.",
+                    defaultValue = false
+                ),
+                SettingItem(
                     FacebookSettings.KEY_HIDE_REEL_PROMPTS,
                     "Hide reel interest prompts",
                     "No 'Are you interested in this reel?' prompt on reels. The reel plays as usual.",

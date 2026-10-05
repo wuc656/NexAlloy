@@ -22,6 +22,8 @@ import io.github.nexalloy.morphe.facebook.stories.ViewStoriesAnonymously
 import io.github.nexalloy.morphe.facebook.stories.BlockStoryAutoAdvance
 import io.github.nexalloy.morphe.facebook.reels.HideReelPrompts
 import io.github.nexalloy.morphe.facebook.reels.DontSendReelWatchHistory
+import io.github.nexalloy.morphe.facebook.media.DefaultPlaybackQuality
+import io.github.nexalloy.morphe.facebook.reels.HoldReelFor2x
 import io.github.nexalloy.morphe.facebook.navigation.TabBarAtTheBottom
 import io.github.nexalloy.morphe.facebook.settings.FacebookSettingsHook
 
@@ -56,5 +58,8 @@ val FacebookPatches = arrayOf(
     HideReelPrompts,
     DontSendReelWatchHistory,
     ViewStoriesAnonymously,
-    BlockStoryAutoAdvance
+    BlockStoryAutoAdvance,
+    HoldReelFor2x,
+    DefaultPlaybackQuality
 )
+

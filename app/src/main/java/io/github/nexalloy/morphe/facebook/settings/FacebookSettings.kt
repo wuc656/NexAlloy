@@ -33,6 +33,9 @@ object FacebookSettings {
     const val KEY_DONT_SEND_REEL_WATCH_HISTORY = "hushfacebook_dont_send_reel_watch_history"
     const val KEY_VIEW_STORIES_ANONYMOUSLY = "hushfacebook_view_stories_anonymously"
     const val KEY_STOP_STORY_AUTO_ADVANCE = "hushfacebook_stop_story_auto_advance"
+    const val KEY_HOLD_REEL_FOR_2X = "hushfacebook_hold_reel_for_2x"
+    const val KEY_DEFAULT_PLAYBACK_QUALITY = "hushfacebook_default_playback_quality"
+    const val KEY_PLAYBACK_QUALITY = "hushfacebook_playback_quality"
 
     // Mapping of Hushfacebook internal settings keys to NexAlloy Patch names
     val PATCH_MAPPING: Map<String, String> = mapOf(
@@ -60,7 +63,9 @@ object FacebookSettings {
         KEY_HIDE_REEL_PROMPTS to "Hide reel interest prompts",
         KEY_DONT_SEND_REEL_WATCH_HISTORY to "Don't send reel watch history",
         KEY_VIEW_STORIES_ANONYMOUSLY to "View stories anonymously",
-        KEY_STOP_STORY_AUTO_ADVANCE to "Stop Story auto-advance"
+        KEY_STOP_STORY_AUTO_ADVANCE to "Stop Story auto-advance",
+        KEY_HOLD_REEL_FOR_2X to "Hold a reel for 2x",
+        KEY_DEFAULT_PLAYBACK_QUALITY to "Default playback quality"
     )
 
     private var prefs: SharedPreferences? = null
@@ -98,6 +103,14 @@ object FacebookSettings {
 
     fun setEnabled(key: String, value: Boolean) {
         prefs?.edit()?.putBoolean(key, value)?.apply()
+    }
+
+    fun getString(key: String, default: String): String {
+        return prefs?.getString(key, default) ?: default
+    }
+
+    fun setString(key: String, value: String) {
+        prefs?.edit()?.putString(key, value)?.apply()
     }
 
     fun resetToDefaults() {
