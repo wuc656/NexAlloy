@@ -18,7 +18,7 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Reddit", "com.reddit.frontpage", RedditPatches),
     AppPatchInfo("Google Photos", "com.google.android.apps.photos", GooglePhotosPatches),
     AppPatchInfo("Photomath", "com.microblink.photomath", PhotomathPatches),
-    AppPatchInfo("Instagram", "com.instagram.android", io.github.nexalloy.morphe.instagram.InstagramPatches),
+    AppPatchInfo("Instagram", "com.instagram.android", MetaPatches),
     AppPatchInfo("Threads", "com.instagram.barcelona", io.github.nexalloy.morphe.threads.ThreadsPatches),
     AppPatchInfo("Strava", "com.strava", StravaPatches),
     AppPatchInfo("AllTrails", "com.alltrails.alltrails", AllTrailsPatches),
