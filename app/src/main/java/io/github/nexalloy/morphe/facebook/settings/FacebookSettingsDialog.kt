@@ -123,6 +123,29 @@ object FacebookSettingsDialog {
             FacebookSettings.KEY_HIDE_SUGGESTED_STORIES,
             "Hide suggested stories",
             "Removes suggested stories and friend suggestions from Stories tray."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_REEL_PROMPTS,
+            "Hide reel interest prompts",
+            "Removes 'Are you interested in this reel?' banner from Reels."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_DONT_SEND_REEL_WATCH_HISTORY,
+            "Don't send reel watch history",
+            "Stops sending Facebook the list of reels you have watched.",
+            defaultValue = false
+        ),
+        SettingItem(
+            FacebookSettings.KEY_VIEW_STORIES_ANONYMOUSLY,
+            "View stories anonymously",
+            "Keeps you off the viewer list of stories you watch.",
+            defaultValue = false
+        ),
+        SettingItem(
+            FacebookSettings.KEY_STOP_STORY_AUTO_ADVANCE,
+            "Stop Story auto-advance",
+            "Keeps each Story on screen until you tap or swipe.",
+            defaultValue = false
         )
     )
 

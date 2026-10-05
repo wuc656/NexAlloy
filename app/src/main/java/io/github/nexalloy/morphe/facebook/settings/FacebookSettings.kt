@@ -28,6 +28,10 @@ object FacebookSettings {
     const val KEY_HIDE_SPONSORED_MARKETPLACE = "hushfacebook_hide_sponsored_marketplace"
     const val KEY_SANITIZE_SHARING_LINKS = "hushfacebook_sanitize_sharing_links"
     const val KEY_HIDE_SUGGESTED_STORIES = "hushfacebook_hide_suggested_stories"
+    const val KEY_HIDE_REEL_PROMPTS = "hushfacebook_hide_reel_prompts"
+    const val KEY_DONT_SEND_REEL_WATCH_HISTORY = "hushfacebook_dont_send_reel_watch_history"
+    const val KEY_VIEW_STORIES_ANONYMOUSLY = "hushfacebook_view_stories_anonymously"
+    const val KEY_STOP_STORY_AUTO_ADVANCE = "hushfacebook_stop_story_auto_advance"
 
     private var prefs: SharedPreferences? = null
     private var remotePrefs: SharedPreferences? = null
