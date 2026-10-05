@@ -37,3 +37,17 @@ internal object EdgeSwapRunFingerprint : Fingerprint(
     ),
 )
 
+internal object FeedUnitGetterFingerprint : Fingerprint(
+    definingClass = FEED_UNIT_EDGE,
+    parameters = listOf(),
+    strings = listOf("inflateFeedUnit"),
+)
+
+internal object TimelineStoryRenderFingerprint : Fingerprint(
+    strings = listOf(
+        "sponsored_timeline_stories_test_key",
+        "timeline_stories_test_key",
+        "TimelineStoryComponent"
+    )
+)
+

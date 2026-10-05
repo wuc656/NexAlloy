@@ -6,34 +6,93 @@ import java.lang.reflect.Method
 
 private val HIDDEN_CATEGORIES = setOf("SPONSORED", "PROMOTION")
 
+private val SUGGESTED_UNITS = setOf(
+    "GraphQLPagesYouMayLikeFeedUnit",
+    "GraphQLPaginatedPagesYouMayLikeFeedUnit",
+    "GraphQLCreativePagesYouMayLikeFeedUnit",
+    "GraphQLPYMLWithLargeImageFeedUnit",
+    "GraphQLPagesYouMayFollowFeedUnit",
+    "GraphQLPagesYouMayAdvertiseFeedUnit",
+    "GraphQLPymgfFeedUnit",
+    "GraphQLQuickPromotionFeedUnit",
+    "GraphQLQuickPromotionNativeTemplateFeedUnit",
+    "GraphQLEndOfFeedUpsellCustomNTFeedUnit",
+    "GraphQLExploreFeedUpsellNTUnit",
+    "GraphQLGreetingCardPromotionFeedUnit",
+    "GraphQLStoryGallerySurveyFeedUnit",
+    "GraphQLBusinessPageReviewFeedUnit",
+    "GraphQLHoldoutAdFeedUnit"
+)
+
+private val SUGGESTED_TYPE_NAMES = setOf(
+    "PaginatedPeopleYouMayKnowFeedUnit",
+    "GroupsYouShouldJoinFeedUnit",
+    "DiscoverFeedUnit",
+    "ShowreelNativeFeedUnit",
+    "ShortFormVideoAttachmentFeedUnit"
+)
+
 val HideSponsoredPosts = patch(
-    name = "Hide sponsored posts",
-    description = "Removes sponsored and promoted posts from the news feed.",
+    name = "Hide sponsored and suggested posts",
+    description = "Removes sponsored, promoted, and suggested posts from the news feed.",
 ) {
     val edgeClass = classLoader.loadClass(FEED_UNIT_EDGE_CLASS)
     val categoryClass = classLoader.loadClass(FEED_STORY_CATEGORY_CLASS)
-    // Only zero-arg getter on the edge returning the category enum (cached, never null).
     val categoryGetter: Method = edgeClass.declaredMethods.single {
         it.returnType == categoryClass && it.parameterTypes.isEmpty()
     }.apply { isAccessible = true }
 
+    var cachedFeedUnitGetter: Method? = null
+
+    fun isSuggestedUnit(obj: Any?): Boolean {
+        if (obj == null) return false
+        val simpleName = obj.javaClass.simpleName
+        if (simpleName in SUGGESTED_UNITS) return true
+        
+        val typeNameMethod = runCatching { obj.javaClass.getMethod("getTypeName") }.getOrNull()
+        if (typeNameMethod != null) {
+            val typeName = runCatching { typeNameMethod.invoke(obj) as? String }.getOrNull()
+            if (typeName in SUGGESTED_TYPE_NAMES) return true
+        }
+        return false
+    }
+
     fun isAd(edge: Any?): Boolean {
         if (edge == null) return false
-        val category = runCatching { categoryGetter.invoke(edge) as? Enum<*> }.getOrNull() ?: return false
-        return category.name in HIDDEN_CATEGORIES
+        val category = runCatching { categoryGetter.invoke(edge) as? Enum<*> }.getOrNull()
+        if (category?.name in HIDDEN_CATEGORIES) return true
+        
+        if (cachedFeedUnitGetter != null) {
+            val feedUnit = runCatching { cachedFeedUnitGetter!!.invoke(edge) }.getOrNull()
+            return isSuggestedUnit(feedUnit)
+        }
+
+        // Search for the feed unit getter
+        for (method in edgeClass.declaredMethods) {
+            if (method.parameterTypes.isNotEmpty() || method.returnType.isPrimitive || method.returnType == String::class.java) continue
+            method.isAccessible = true
+            val obj = runCatching { method.invoke(edge) }.getOrNull() ?: continue
+            
+            // Heuristic: If it has a getTypeName method, it is likely the FeedUnit
+            if (runCatching { obj.javaClass.getMethod("getTypeName") }.isSuccess) {
+                cachedFeedUnitGetter = method
+                return isSuggestedUnit(obj)
+            }
+        }
+        
+        return false
     }
 
     AddNewEdgeToCollectionFingerprint.hookMethod {
         before { param ->
             val edge = param.args.firstOrNull { edgeClass.isInstance(it) }
             if (isAd(edge)) {
-                Logger.printDebug { "Hide sponsored feed edge" }
+                Logger.printDebug { "Hide sponsored or suggested feed edge" }
                 param.result = false
             }
         }
     }
 
-    // Ad hot-swap path never reaches the funnel. Leave the old edge in place.
     EdgeSwapRunFingerprint.hookMethod {
         before { param ->
             val runnable = param.thisObject
@@ -48,4 +107,20 @@ val HideSponsoredPosts = patch(
             }
         }
     }
+
+    TimelineStoryRenderFingerprint.hookMethod {
+        before { param ->
+            val component = param.thisObject ?: return@before
+            for (field in component.javaClass.declaredFields) {
+                field.isAccessible = true
+                val value = runCatching { field.get(component) }.getOrNull() ?: continue
+                if (isAd(value)) {
+                    Logger.printDebug { "Hide sponsored profile posts: Blocked ad on timeline" }
+                    param.result = null
+                    break
+                }
+            }
+        }
+    }
 }
+
