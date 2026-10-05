@@ -26,18 +26,11 @@ internal object PostHeaderSubtitleCyclingFingerprint : Fingerprint(
 val KeepPostDates = patch(
     name = "Keep post dates",
     description = "Keeps the date under the poster's name. Prevents the subtitle from swapping to rotating details.",
+    use = false
 ) {
     PostHeaderSubtitleCyclingFingerprint.hookMethod(object : XC_MethodHook() {
         override fun beforeHookedMethod(param: MethodHookParam) {
-            // Note: in bytecode patch, the cycling choice boolean is forced to false.
-            // If Facebook's render method evaluates cycling or subtitle plugins,
-            // we log and hook if applicable.
-        }
-
-        override fun afterHookedMethod(param: MethodHookParam) {
-            if (FacebookSettings.isEnabled(FacebookSettings.KEY_KEEP_POST_DATES, true)) {
-                Logger.printDebug { "KeepPostDates: Subtitle rendered" }
-            }
+            if (!FacebookSettings.isEnabled(FacebookSettings.KEY_KEEP_POST_DATES, false)) return
         }
     })
 }
