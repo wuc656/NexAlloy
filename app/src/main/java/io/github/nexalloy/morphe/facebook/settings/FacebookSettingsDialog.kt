@@ -37,47 +37,56 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SPONSORED_POSTS,
                     "Hide sponsored posts",
-                    "Paid ads in the feed. They're dropped before Facebook adds them, so no gap is left."
+                    "Paid ads in the feed. They're dropped before Facebook adds them, so no gap is left.",
+                    defaultValue = true
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_PROMOTED_POSTS,
                     "Hide promoted posts",
-                    "Posts Facebook files as promotions rather than as ads."
+                    "Posts Facebook files as promotions rather than as ads.",
+                    defaultValue = true
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SPONSORED_PROFILE_POSTS,
                     "Hide sponsored profile posts",
-                    "Ads between the posts on someone's profile or a Page. Their own posts stay."
+                    "Ads between the posts on someone's profile or a Page. Their own posts stay.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_AFFILIATE_LINKS,
                     "Hide affiliate product links",
-                    "The product cards of shop links creators add to posts, on reels, under feed posts and in the comments."
+                    "The product cards of shop links creators add to posts, on reels, under feed posts and in the comments.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SUGGESTED_POSTS,
                     "Hide suggested and promoted posts",
-                    "Removes Pages you may like, groups, and people you may know from the feed."
+                    "Removes Pages you may like, groups, and people you may know from the feed.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_REELS_IN_FEED,
                     "Hide Reels in the feed",
-                    "The rows of reels between posts, and the reels Facebook adds where your feed ends."
+                    "The rows of reels between posts, and the reels Facebook adds where your feed ends.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_POST_PROMPTS,
                     "Hide post prompts",
-                    "The strip Facebook adds to some posts: suggestions, 'Are you interested in this post?', and recently commented."
+                    "The strip Facebook adds to some posts: suggestions, 'Are you interested in this post?', and recently commented.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_META_AI_QUESTIONS,
                     "Hide Meta AI questions under posts",
-                    "Removes the row of Meta AI questions Facebook puts under posts."
+                    "Removes the row of Meta AI questions Facebook puts under posts.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_KEEP_POST_DATES,
                     "Keep post dates",
-                    "Keeps the one line with the date instead of rotating details."
+                    "Keeps the one line with the date instead of rotating details.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_FEEDS_HEADER,
@@ -94,12 +103,14 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SPONSORED_STORIES,
                     "Hide sponsored stories",
-                    "Removes ad cards from the story viewer, so swiping only shows stories people posted."
+                    "Removes ad cards from the story viewer, so swiping only shows stories people posted.",
+                    defaultValue = true
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SUGGESTED_STORIES,
                     "Hide suggested stories",
-                    "Removes stories Facebook suggests from people and Pages you don't follow, and friend suggestions from Stories tray."
+                    "Removes stories Facebook suggests from people and Pages you don't follow, and friend suggestions from Stories tray.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_VIEW_STORIES_ANONYMOUSLY,
@@ -121,12 +132,14 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SPONSORED_REELS,
                     "Hide sponsored reels",
-                    "Ads inside Reels, starting with the next batch Facebook loads."
+                    "Ads inside Reels, starting with the next batch Facebook loads.",
+                    defaultValue = true
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_REEL_PROMPTS,
                     "Hide reel interest prompts",
-                    "No 'Are you interested in this reel?' prompt on reels. The reel plays as usual."
+                    "No 'Are you interested in this reel?' prompt on reels. The reel plays as usual.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_DONT_SEND_REEL_WATCH_HISTORY,
@@ -142,7 +155,8 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SPONSORED_MARKETPLACE,
                     "Hide sponsored Marketplace listings",
-                    "Ads and boosted listings in Marketplace's feed and search results."
+                    "Ads and boosted listings in Marketplace's feed and search results.",
+                    defaultValue = false
                 )
             )
         ),
@@ -152,7 +166,8 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_HIDE_SPONSORED_SEARCH_RESULTS,
                     "Hide sponsored search results",
-                    "Ads between the results when you search Facebook. What you searched for stays."
+                    "Ads between the results when you search Facebook. What you searched for stays.",
+                    defaultValue = false
                 )
             )
         ),
@@ -162,7 +177,8 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_BLOCK_PROMO_NOTIFS,
                     "Block promotional notifications",
-                    "Stops notifications for birthdays, trending videos, memories, and page digests."
+                    "Stops notifications for birthdays, trending videos, memories, and page digests.",
+                    defaultValue = false
                 )
             )
         ),
@@ -184,22 +200,26 @@ object FacebookSettingsDialog {
                 SettingItem(
                     FacebookSettings.KEY_SANITIZE_SHARING_LINKS,
                     "Sanitize sharing links",
-                    "Takes tracking tags such as mibextid, fbclid, and sfnsn off the links you share or copy."
+                    "Takes tracking tags such as mibextid, fbclid, and sfnsn off the links you share or copy.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_BLOCK_AD_PREFETCH,
                     "Block background ad prefetch",
-                    "Facebook doesn't download ads or its ad model in the background."
+                    "Facebook doesn't download ads or its ad model in the background.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_BLOCK_AD_TELEMETRY,
                     "Block ad telemetry",
-                    "No screenshot watching for ads, and no reports of which apps you install."
+                    "No screenshot watching for ads, and no reports of which apps you install.",
+                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_DISABLE_AUDIENCE_NETWORK,
                     "Disable Audience Network",
-                    "Facebook doesn't serve ads to other apps on this phone."
+                    "Facebook doesn't serve ads to other apps on this phone.",
+                    defaultValue = false
                 )
             )
         )
@@ -248,6 +268,19 @@ object FacebookSettingsDialog {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
+        val resetButton = TextView(context).apply {
+            text = "Reset"
+            textSize = 14f
+            setTextColor(Color.parseColor("#FF9800"))
+            setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), 0)
+            setOnClickListener {
+                FacebookSettings.resetToDefaults()
+                android.widget.Toast.makeText(context, "Hushfacebook settings reset to defaults", android.widget.Toast.LENGTH_SHORT).show()
+                dialog?.dismiss()
+                show(activity)
+            }
+        }
+
         val closeButton = TextView(context).apply {
             text = "✕"
             textSize = 18f
@@ -258,6 +291,7 @@ object FacebookSettingsDialog {
 
         headerLayout.addView(backButton)
         headerLayout.addView(titleView)
+        headerLayout.addView(resetButton)
         headerLayout.addView(closeButton)
         rootLayout.addView(headerLayout)
 

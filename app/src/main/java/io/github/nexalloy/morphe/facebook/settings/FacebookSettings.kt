@@ -99,4 +99,8 @@ object FacebookSettings {
     fun setEnabled(key: String, value: Boolean) {
         prefs?.edit()?.putBoolean(key, value)?.apply()
     }
+
+    fun resetToDefaults() {
+        prefs?.edit()?.clear()?.apply()
+    }
 }
