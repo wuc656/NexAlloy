@@ -19,7 +19,7 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Google Photos", "com.google.android.apps.photos", GooglePhotosPatches),
     AppPatchInfo("Photomath", "com.microblink.photomath", PhotomathPatches),
     AppPatchInfo("Instagram", "com.instagram.android", MetaPatches + arrayOf(io.github.nexalloy.morphe.instagram.ads.HideInstagramAds, io.github.nexalloy.morphe.instagram.theme.InstagramPureBlackDarkMode)),
-    AppPatchInfo("Threads", "com.instagram.barcelona", MetaPatches + arrayOf(io.github.nexalloy.morphe.threads.ads.HideThreadsAds, io.github.nexalloy.morphe.threads.theme.PureBlackDarkMode)),
+    AppPatchInfo("Threads", "com.instagram.barcelona", MetaPatches + arrayOf(io.github.nexalloy.morphe.threads.theme.PureBlackDarkMode)),
     AppPatchInfo("Strava", "com.strava", StravaPatches),
     AppPatchInfo("AllTrails", "com.alltrails.alltrails", AllTrailsPatches),
     AppPatchInfo("Facebook", "com.facebook.katana", FacebookPatches),
