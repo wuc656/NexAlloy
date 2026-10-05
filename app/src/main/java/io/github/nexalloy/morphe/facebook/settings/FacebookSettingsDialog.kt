@@ -108,6 +108,21 @@ object FacebookSettingsDialog {
             "Tab bar at the bottom",
             "Moves navigation tab bar to the bottom of the screen.",
             defaultValue = false
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_SPONSORED_MARKETPLACE,
+            "Hide sponsored Marketplace listings",
+            "Removes ads and boosted listings from Marketplace feed and search results."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_SANITIZE_SHARING_LINKS,
+            "Sanitize sharing links",
+            "Takes tracking tags (mibextid, fbclid, sfnsn) off links you share or copy."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_SUGGESTED_STORIES,
+            "Hide suggested stories",
+            "Removes suggested stories and friend suggestions from Stories tray."
         )
     )
 

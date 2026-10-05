@@ -25,6 +25,9 @@ object FacebookSettings {
     const val KEY_KEEP_POST_DATES = "hushfacebook_keep_post_dates"
     const val KEY_HIDE_SPONSORED_SEARCH_RESULTS = "hushfacebook_hide_sponsored_search_results"
     const val KEY_BOTTOM_TAB_BAR = "hushfacebook_bottom_tab_bar"
+    const val KEY_HIDE_SPONSORED_MARKETPLACE = "hushfacebook_hide_sponsored_marketplace"
+    const val KEY_SANITIZE_SHARING_LINKS = "hushfacebook_sanitize_sharing_links"
+    const val KEY_HIDE_SUGGESTED_STORIES = "hushfacebook_hide_suggested_stories"
 
     private var prefs: SharedPreferences? = null
     private var remotePrefs: SharedPreferences? = null
