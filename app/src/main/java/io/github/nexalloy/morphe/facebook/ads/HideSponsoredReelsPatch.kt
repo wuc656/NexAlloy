@@ -23,6 +23,9 @@ val HideSponsoredReels = patch(
     fingerprints.forEach { fp ->
         fp.hookMethod {
             before { param ->
+                if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_REELS, true
+                    )) return@before
                 Logger.printDebug { "Hide sponsored reels: Blocked ad insertion" }
                 param.result = null // Returns void immediately
             }

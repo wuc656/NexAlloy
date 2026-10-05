@@ -47,12 +47,25 @@ val HideSponsoredPosts = patch(
     fun isSuggestedUnit(obj: Any?): Boolean {
         if (obj == null) return false
         val simpleName = obj.javaClass.simpleName
-        if (simpleName in SUGGESTED_UNITS) return true
+        if (simpleName in SUGGESTED_UNITS) {
+            return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SUGGESTED_POSTS, true
+            )
+        }
         
         val typeNameMethod = runCatching { obj.javaClass.getMethod("getTypeName") }.getOrNull()
         if (typeNameMethod != null) {
             val typeName = runCatching { typeNameMethod.invoke(obj) as? String }.getOrNull()
-            if (typeName in SUGGESTED_TYPE_NAMES) return true
+            if (typeName in SUGGESTED_TYPE_NAMES) {
+                if (typeName == "ShowreelNativeFeedUnit" || typeName == "ShortFormVideoAttachmentFeedUnit") {
+                    return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_REELS_IN_FEED, true
+                    )
+                }
+                return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                    io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SUGGESTED_POSTS, true
+                )
+            }
         }
         return false
     }
@@ -60,7 +73,11 @@ val HideSponsoredPosts = patch(
     fun isAd(edge: Any?): Boolean {
         if (edge == null) return false
         val category = runCatching { categoryGetter.invoke(edge) as? Enum<*> }.getOrNull()
-        if (category?.name in HIDDEN_CATEGORIES) return true
+        if (category?.name in HIDDEN_CATEGORIES) {
+            return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_POSTS, true
+            )
+        }
         
         if (cachedFeedUnitGetter != null) {
             val feedUnit = runCatching { cachedFeedUnitGetter!!.invoke(edge) }.getOrNull()

@@ -5,7 +5,7 @@ import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.patch
 
 internal object FloatingCardReaderFingerprint : Fingerprint(
-    definingClass = "com.facebook.feedback.comments.plugins.indicatorpill.organicaffiliatefloatingcta.OrganicAffiliateFloatingCtaPlugin"
+    definingClass = "Lcom/facebook/feedback/comments/plugins/indicatorpill/organicaffiliatefloatingcta/OrganicAffiliateFloatingCtaPlugin;"
 )
 
 val HideAffiliateLinks = patch(
@@ -19,8 +19,12 @@ val HideAffiliateLinks = patch(
             if (java.lang.reflect.Modifier.isStatic(method.modifiers) && 
                 method.parameterTypes.size == 1 &&
                 !method.returnType.isPrimitive) {
-                Logger.printDebug { "Hide affiliate links: Blocked floating card" }
-                param.result = null
+                if (io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_AFFILIATE_LINKS, true
+                    )) {
+                    Logger.printDebug { "Hide affiliate links: Blocked floating card" }
+                    param.result = null
+                }
             }
         }
     }

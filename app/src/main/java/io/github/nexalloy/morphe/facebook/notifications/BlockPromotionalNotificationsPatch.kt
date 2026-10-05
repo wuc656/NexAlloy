@@ -5,7 +5,7 @@ import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.patch
 
 internal object TrayManagerPostFingerprint : Fingerprint(
-    definingClass = "com.facebook.notifications.tray.SystemTrayNotificationManager",
+    definingClass = "Lcom/facebook/notifications/tray/SystemTrayNotificationManager;",
     returnType = "V",
     strings = listOf("show_notif_start")
 )
@@ -55,8 +55,12 @@ val BlockPromotionalNotifications = patch(
             )
             
             if (kind in blockedKinds) {
-                Logger.printDebug { "Block promotional notifications: Blocked $kind" }
-                param.result = null
+                if (io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_BLOCK_PROMO_NOTIFS, true
+                    )) {
+                    Logger.printDebug { "Block promotional notifications: Blocked $kind" }
+                    param.result = null
+                }
             }
         }
     }

@@ -26,6 +26,9 @@ val DisableAudienceNetwork = patch(
             val method = clazz.declaredMethods.firstOrNull { it.name == "onCreate" } ?: return@forEach
             XposedBridge.hookMethod(method, object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                            io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_DISABLE_AUDIENCE_NETWORK, true
+                        )) return
                     Logger.printDebug { "Disable Audience Network: Blocked $className" }
                     val obj = param.thisObject
                     if (obj is Activity) {

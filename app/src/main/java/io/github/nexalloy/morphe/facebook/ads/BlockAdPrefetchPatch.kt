@@ -26,6 +26,9 @@ val BlockAdPrefetch = patch(
             runCatching {
                 XposedBridge.hookMethod(method, object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                                io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_BLOCK_AD_PREFETCH, true
+                            )) return
                         Logger.printDebug { "Block ad prefetch: Blocked execution in ${clazz.simpleName}.${method.name}" }
                         param.result = null
                     }

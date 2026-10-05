@@ -23,6 +23,11 @@ val BlockAdTelemetry = patch(
             runCatching {
                 XposedBridge.hookMethod(method, object : XC_MethodReplacement() {
                     override fun replaceHookedMethod(param: MethodHookParam): Any? {
+                        if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                                io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_BLOCK_AD_TELEMETRY, true
+                            )) {
+                            return XposedBridge.invokeOriginalMethod(param.method, param.thisObject, param.args)
+                        }
                         Logger.printDebug { "Block ad telemetry: Blocked ${className}.${method.name}" }
                         return null
                     }
