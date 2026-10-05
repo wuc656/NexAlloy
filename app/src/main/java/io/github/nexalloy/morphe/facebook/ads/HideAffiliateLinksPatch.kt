@@ -1,31 +1,36 @@
 package io.github.nexalloy.morphe.facebook.ads
 
 import app.morphe.extension.shared.Logger
-import io.github.nexalloy.morphe.Fingerprint
+import de.robv.android.xposed.XC_MethodHook
+import de.robv.android.xposed.XposedBridge
+import io.github.nexalloy.morphe.facebook.settings.FacebookSettings
 import io.github.nexalloy.patch
+import java.lang.reflect.Modifier
 
-internal object FloatingCardReaderFingerprint : Fingerprint(
-    definingClass = "Lcom/facebook/feedback/comments/plugins/indicatorpill/organicaffiliatefloatingcta/OrganicAffiliateFloatingCtaPlugin;"
-)
+private const val AFFILIATE_PLUGIN =
+    "com.facebook.feedback.comments.plugins.indicatorpill.organicaffiliatefloatingcta.OrganicAffiliateFloatingCtaPlugin"
 
 val HideAffiliateLinks = patch(
     name = "Hide affiliate product links",
     description = "Removes the product cards of affiliate shop links from reels, feed posts and the comment sheet.",
 ) {
-    FloatingCardReaderFingerprint.hookMethod {
-        before { param ->
-            val method = param.method as java.lang.reflect.Method
-            // Only hook static readers
-            if (java.lang.reflect.Modifier.isStatic(method.modifiers) && 
-                method.parameterTypes.size == 1 &&
-                !method.returnType.isPrimitive) {
-                if (io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
-                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_AFFILIATE_LINKS, true
-                    )) {
-                    Logger.printDebug { "Hide affiliate links: Blocked floating card" }
-                    param.result = null
-                }
-            }
-        }
+    // The plugin keeps its name; its static one-argument readers return the card model.
+    // Hooked by reflection: a DexKit fingerprint on the class alone matches many methods.
+    val plugin = runCatching { classLoader.loadClass(AFFILIATE_PLUGIN) }.getOrNull() ?: run {
+        Logger.printInfo { "Hide affiliate links: $AFFILIATE_PLUGIN not in this build" }
+        return@patch
     }
+    val readers = plugin.declaredMethods.filter {
+        Modifier.isStatic(it.modifiers) && it.parameterTypes.size == 1 && !it.returnType.isPrimitive
+    }
+    readers.forEach { method ->
+        XposedBridge.hookMethod(method, object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (!FacebookSettings.isEnabled(FacebookSettings.KEY_HIDE_AFFILIATE_LINKS, true)) return
+                Logger.printDebug { "Hide affiliate links: Blocked floating card" }
+                param.result = null
+            }
+        })
+    }
+    Logger.printInfo { "Hide affiliate links: hooked ${readers.size} readers" }
 }
