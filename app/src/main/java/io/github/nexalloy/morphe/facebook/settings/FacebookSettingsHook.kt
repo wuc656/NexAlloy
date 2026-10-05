@@ -6,7 +6,6 @@ import android.view.View
 import app.morphe.extension.shared.Logger
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.XposedHelpers
 import io.github.nexalloy.PatchExecutor
 import java.lang.ref.WeakReference
 
@@ -39,24 +38,25 @@ object FacebookSettingsHook {
             })
         }
 
-        // 2. Hook WordmarkNavigationBar to register Long Click on the Facebook Logo
+        // 2. Hook View.setContentDescription to reliably intercept the Facebook Logo view creation
         runCatching {
-            val navBarClass = classLoader.loadClass("com.facebook.navigation.navbar.legacy.search.WordmarkNavigationBar")
-            navBarClass.declaredMethods.forEach { method ->
-                // Look for method creating or configuring the wordmark / logo view
-                if (View::class.java.isAssignableFrom(method.returnType)) {
-                    XposedBridge.hookMethod(method, object : XC_MethodHook() {
-                        override fun afterHookedMethod(param: MethodHookParam) {
-                            val logoView = param.result as? View ?: return
+            XposedBridge.hookMethod(
+                View::class.java.getMethod("setContentDescription", CharSequence::class.java),
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val desc = param.args.firstOrNull()?.toString() ?: return
+                        if (desc.equals("facebook 標誌", ignoreCase = true) || desc.equals("facebook logo", ignoreCase = true)) {
+                            val logoView = param.thisObject as? View ?: return
                             attachLogoLongClickListener(logoView)
                         }
-                    })
+                    }
                 }
-            }
+            )
         }
     }
 
     private fun attachLogoLongClickListener(logoView: View) {
+        logoView.isLongClickable = true
         logoView.setOnLongClickListener { v ->
             val act = currentActivity?.get() ?: (v.context as? Activity)
             if (act != null && !act.isFinishing && !act.isDestroyed) {
