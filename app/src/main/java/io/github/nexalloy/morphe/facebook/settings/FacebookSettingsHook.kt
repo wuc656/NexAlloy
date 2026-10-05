@@ -14,7 +14,7 @@ object FacebookSettingsHook {
 
     fun initialize(executor: PatchExecutor) {
         val classLoader = executor.classLoader
-        FacebookSettings.initRemote(executor.patchPreferences)
+        FacebookSettings.initRemote(executor.xposed.getRemotePreferences(executor.lpparam.packageName))
         Logger.printInfo { "FacebookSettingsHook: initializing with classLoader: $classLoader" }
 
         // 1. Hook Application / Activity Lifecycle to keep track of current Activity
