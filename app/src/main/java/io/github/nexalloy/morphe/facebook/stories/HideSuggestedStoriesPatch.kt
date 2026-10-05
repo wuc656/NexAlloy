@@ -7,7 +7,6 @@ import io.github.nexalloy.morphe.facebook.settings.FacebookSettings
 import io.github.nexalloy.patch
 
 internal object StoryPostProcessFingerprint : Fingerprint(
-    returnType = "LX/1yk;",
     strings = listOf("StoriesTrayLightFetchControllerQueryOps.postProcessResult")
 )
 
@@ -20,7 +19,6 @@ val HideSuggestedStories = patch(
             override fun afterHookedMethod(param: MethodHookParam) {
                 if (!FacebookSettings.isEnabled(FacebookSettings.KEY_HIDE_SUGGESTED_STORIES, true)) return
                 val trayData = param.result ?: return
-                // Filter the ImmutableList field inside TrayData (LX/1yk;)
                 for (field in trayData.javaClass.declaredFields) {
                     if (List::class.java.isAssignableFrom(field.type)) {
                         field.isAccessible = true

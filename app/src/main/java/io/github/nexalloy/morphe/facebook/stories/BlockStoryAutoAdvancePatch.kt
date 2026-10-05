@@ -7,6 +7,7 @@ import io.github.nexalloy.patch
 
 internal object StoryAutoAdvanceFingerprint : Fingerprint(
     returnType = "V",
+    parameters = listOf("Lcom/facebook/stories/model/StoryCard;", "LX/ACF;"),
     strings = listOf("StoryviewerAutoPlayNavigationController.moveToNextBucketOrThread")
 )
 

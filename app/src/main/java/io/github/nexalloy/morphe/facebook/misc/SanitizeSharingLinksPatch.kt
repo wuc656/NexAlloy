@@ -42,7 +42,7 @@ internal fun sanitizeUrl(urlStr: String): String {
  */
 internal object ExternalShareTrackerFingerprint : Fingerprint(
     returnType = "Ljava/lang/String;",
-    strings = listOf("mibextid")
+    strings = listOf("ExternalShareTracker")
 )
 
 /**
