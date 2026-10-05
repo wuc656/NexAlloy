@@ -15,6 +15,7 @@ object FacebookSettingsHook {
     fun initialize(executor: PatchExecutor) {
         val classLoader = executor.classLoader
         FacebookSettings.initRemote(executor.patchPreferences)
+        Logger.printInfo { "FacebookSettingsHook: initializing with classLoader: $classLoader" }
 
         // 1. Hook Application / Activity Lifecycle to keep track of current Activity
         runCatching {
@@ -26,6 +27,8 @@ object FacebookSettingsHook {
                     Logger.printInfo { "Hushfacebook initialized in FacebookApplication" }
                 }
             })
+        }.onFailure {
+            Logger.printException({ "Failed to hook FacebookApplication.onCreate" }, it)
         }
 
         runCatching {
@@ -35,8 +38,11 @@ object FacebookSettingsHook {
                     val activity = param.thisObject as? Activity ?: return
                     currentActivity = WeakReference(activity)
                     FacebookSettings.init(activity)
+                    Logger.printInfo { "Hushfacebook tracked FbMainTabActivity onResume: $activity" }
                 }
             })
+        }.onFailure {
+            Logger.printException({ "Failed to hook FbMainTabActivity.onResume" }, it)
         }
 
         // 2. Hook View.setContentDescription to reliably intercept the Facebook Logo view creation
@@ -48,11 +54,14 @@ object FacebookSettingsHook {
                         val desc = param.args.firstOrNull()?.toString() ?: return
                         if (desc.equals("facebook 標誌", ignoreCase = true) || desc.equals("facebook logo", ignoreCase = true)) {
                             val logoView = param.thisObject as? View ?: return
+                            Logger.printInfo { "Found Facebook Logo View with desc: '$desc', attaching listener" }
                             attachLogoLongClickListener(logoView)
                         }
                     }
                 }
             )
+        }.onFailure {
+            Logger.printException({ "Failed to hook View.setContentDescription" }, it)
         }
     }
 
@@ -60,6 +69,7 @@ object FacebookSettingsHook {
         logoView.isLongClickable = true
         logoView.setOnLongClickListener { v ->
             val act = currentActivity?.get() ?: (v.context as? Activity)
+            Logger.printInfo { "Logo long-clicked! act: $act" }
             if (act != null && !act.isFinishing && !act.isDestroyed) {
                 Logger.printInfo { "Opening Hushfacebook Settings from Logo Long-Press" }
                 FacebookSettingsDialog.show(act)
