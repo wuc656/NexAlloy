@@ -16,11 +16,13 @@ val HideTelegramAds = patch(
     // 2. Video player ads
     VideoAdsLoadFingerprint.hookMethod(XC_MethodReplacement.DO_NOTHING)
 
-    // 3. Search sponsored peers
-    SearchSponsoredPeersFingerprint.hookMethod(object : XC_MethodHook() {
-        override fun beforeHookedMethod(param: MethodHookParam) {
-            Logger.printDebug { "Telegram: Blocked search sponsored peers request" }
-            param.result = null // skip execution
-        }
-    })
+    // 3. Search sponsored peers (optional: hook if present in build)
+    runCatching {
+        SearchSponsoredPeersFingerprint.hookMethod(object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                Logger.printDebug { "Telegram: Blocked search sponsored peers request" }
+                param.result = null
+            }
+        })
+    }
 }
