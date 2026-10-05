@@ -4,17 +4,20 @@ import app.morphe.extension.shared.Logger
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.patch
 
+internal object StoryHandlingClashFingerprint : Fingerprint(returnType = "Lcom/google/common/collect/ImmutableList;", strings = listOf("handling_inorganic_clash"))
+internal object StoryUninsertedAdsFingerprint : Fingerprint(returnType = "Lcom/google/common/collect/ImmutableList;", strings = listOf("uninsertedMainAdsQueue"))
+internal object StoryAdBucketFingerprint : Fingerprint(returnType = "Lcom/google/common/collect/ImmutableList;", strings = listOf("AdPaginatingBucketStaticInsertionDataSource.getBuckets"))
+internal object StoryMidCardBucketFingerprint : Fingerprint(returnType = "Lcom/google/common/collect/ImmutableList;", strings = listOf("StoryViewerMidCardDataSource.getBuckets"))
+
 val HideSponsoredStories = patch(
     name = "Hide sponsored stories",
     description = "Removes ad cards from the story viewer, so swiping through stories only shows stories people posted.",
 ) {
-    val IMMUTABLE_LIST = "Lcom/google/common/collect/ImmutableList;"
-
     val fingerprints = listOf(
-        Fingerprint(returnType = IMMUTABLE_LIST, strings = listOf("handling_inorganic_clash")),
-        Fingerprint(returnType = IMMUTABLE_LIST, strings = listOf("uninsertedMainAdsQueue")),
-        Fingerprint(returnType = IMMUTABLE_LIST, strings = listOf("AdPaginatingBucketStaticInsertionDataSource.getBuckets")),
-        Fingerprint(returnType = IMMUTABLE_LIST, strings = listOf("StoryViewerMidCardDataSource.getBuckets"))
+        StoryHandlingClashFingerprint,
+        StoryUninsertedAdsFingerprint,
+        StoryAdBucketFingerprint,
+        StoryMidCardBucketFingerprint
     )
 
     fingerprints.forEach { fp ->
