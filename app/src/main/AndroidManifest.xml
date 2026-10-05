@@ -18,6 +18,7 @@
         <package android:name="com.alltrails.alltrails" />
         <package android:name="com.facebook.katana" />
         <package android:name="com.facebook.orca" />
+        <package android:name="org.telegram.messenger" />
     </queries>
 
     <application

@@ -18,12 +18,13 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Reddit", "com.reddit.frontpage", RedditPatches),
     AppPatchInfo("Google Photos", "com.google.android.apps.photos", GooglePhotosPatches),
     AppPatchInfo("Photomath", "com.microblink.photomath", PhotomathPatches),
-    AppPatchInfo("Instagram", "com.instagram.android", MetaPatches),
+    AppPatchInfo("Instagram", "com.instagram.android", io.github.nexalloy.morphe.instagram.InstagramPatches),
     AppPatchInfo("Threads", "com.instagram.barcelona", io.github.nexalloy.morphe.threads.ThreadsPatches),
     AppPatchInfo("Strava", "com.strava", StravaPatches),
     AppPatchInfo("AllTrails", "com.alltrails.alltrails", AllTrailsPatches),
     AppPatchInfo("Facebook", "com.facebook.katana", FacebookPatches),
     AppPatchInfo("Messenger", "com.facebook.orca", io.github.nexalloy.morphe.messenger.MessengerPatches),
+    AppPatchInfo("Telegram", "org.telegram.messenger", io.github.nexalloy.morphe.telegram.TelegramPatches),
 )
 
 val patchesByPackage = appPatchConfigurations.associate { it.packageName to it.patches }
