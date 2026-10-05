@@ -71,6 +71,27 @@ object FacebookSettingsDialog {
             FacebookSettings.KEY_DISABLE_AUDIENCE_NETWORK,
             "Disable Audience Network",
             "Stops Facebook serving off-site ads and external tracking."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_SPONSORED_PROFILE_POSTS,
+            "Hide sponsored profile posts",
+            "Removes ads between posts on user profiles and Pages."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_POST_PROMPTS,
+            "Hide post prompts",
+            "Removes suggestions, who commented, and 'Are you interested' banners."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_META_AI_QUESTIONS,
+            "Hide Meta AI questions under posts",
+            "Removes the row of Meta AI questions Facebook puts under posts."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_FEEDS_HEADER,
+            "Hide the Feeds header",
+            "Removes the title row and filter pills (All, Favorites, Friends) from Feeds tab.",
+            defaultValue = false
         )
     )
 

@@ -18,6 +18,10 @@ object FacebookSettings {
     const val KEY_HIDE_REELS_IN_FEED = "hushfacebook_hide_reels_in_feed"
     const val KEY_HIDE_SUGGESTED_POSTS = "hushfacebook_hide_suggested_posts"
     const val KEY_FORCE_DARK_MODE = "hushfacebook_force_dark_mode"
+    const val KEY_HIDE_SPONSORED_PROFILE_POSTS = "hushfacebook_hide_sponsored_profile_posts"
+    const val KEY_HIDE_POST_PROMPTS = "hushfacebook_hide_post_prompts"
+    const val KEY_HIDE_META_AI_QUESTIONS = "hushfacebook_hide_meta_ai_questions"
+    const val KEY_HIDE_FEEDS_HEADER = "hushfacebook_hide_feeds_header"
 
     private var prefs: SharedPreferences? = null
 
