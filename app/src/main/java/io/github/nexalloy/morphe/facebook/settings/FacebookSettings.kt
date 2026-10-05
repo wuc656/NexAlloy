@@ -22,6 +22,9 @@ object FacebookSettings {
     const val KEY_HIDE_POST_PROMPTS = "hushfacebook_hide_post_prompts"
     const val KEY_HIDE_META_AI_QUESTIONS = "hushfacebook_hide_meta_ai_questions"
     const val KEY_HIDE_FEEDS_HEADER = "hushfacebook_hide_feeds_header"
+    const val KEY_KEEP_POST_DATES = "hushfacebook_keep_post_dates"
+    const val KEY_HIDE_SPONSORED_SEARCH_RESULTS = "hushfacebook_hide_sponsored_search_results"
+    const val KEY_BOTTOM_TAB_BAR = "hushfacebook_bottom_tab_bar"
 
     private var prefs: SharedPreferences? = null
     private var remotePrefs: SharedPreferences? = null

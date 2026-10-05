@@ -92,6 +92,22 @@ object FacebookSettingsDialog {
             "Hide the Feeds header",
             "Removes the title row and filter pills (All, Favorites, Friends) from Feeds tab.",
             defaultValue = false
+        ),
+        SettingItem(
+            FacebookSettings.KEY_KEEP_POST_DATES,
+            "Keep post dates",
+            "Keeps the post timestamp under the poster's name instead of rotating details."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_HIDE_SPONSORED_SEARCH_RESULTS,
+            "Hide sponsored search results",
+            "Removes ads and sponsored items from Facebook search results."
+        ),
+        SettingItem(
+            FacebookSettings.KEY_BOTTOM_TAB_BAR,
+            "Tab bar at the bottom",
+            "Moves navigation tab bar to the bottom of the screen.",
+            defaultValue = false
         )
     )
 
