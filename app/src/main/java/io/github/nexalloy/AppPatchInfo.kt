@@ -23,6 +23,7 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Strava", "com.strava", StravaPatches),
     AppPatchInfo("AllTrails", "com.alltrails.alltrails", AllTrailsPatches),
     AppPatchInfo("Facebook", "com.facebook.katana", FacebookPatches),
+    AppPatchInfo("Messenger", "com.facebook.orca", io.github.nexalloy.morphe.messenger.MessengerPatches),
 )
 
 val patchesByPackage = appPatchConfigurations.associate { it.packageName to it.patches }
