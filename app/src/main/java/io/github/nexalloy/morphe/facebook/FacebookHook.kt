@@ -15,36 +15,26 @@ import io.github.nexalloy.morphe.facebook.feed.HideMetaAiQuestions
 import io.github.nexalloy.morphe.facebook.feed.HideFeedsHeader
 import io.github.nexalloy.morphe.facebook.settings.FacebookSettingsHook
 
-val Hushfacebook = patch(
-    name = "Hushfacebook",
-    description = "Complete Facebook ad blocking and decluttering suite with in-app settings (long-press Facebook logo)."
+val FacebookSettingsPatch = patch(
+    name = "Facebook in-app settings",
+    description = "Enables long-pressing the Facebook logo to open the in-app settings popup.",
+    use = true
 ) {
-    // 1. Initialize Facebook Settings system and logo long press hook
     FacebookSettingsHook.initialize(this)
-
-    // 2. Execute all sub-patches
-    val subPatches = listOf(
-        HideSponsoredPosts,
-        BlockAdPrefetch,
-        DisableAudienceNetwork,
-        HideSponsoredStories,
-        HideSponsoredReels,
-        HideAffiliateLinks,
-        BlockPromotionalNotifications,
-        BlockAdTelemetry,
-        HideSponsoredProfilePosts,
-        HidePostPrompts,
-        HideMetaAiQuestions,
-        HideFeedsHeader
-    )
-
-    subPatches.forEach { p ->
-        runCatching {
-            p.run.invoke(this)
-        }.onFailure { err ->
-            app.morphe.extension.shared.Logger.printException({ "Failed to initialize sub-patch ${p.name}" }, err)
-        }
-    }
 }
 
-val FacebookPatches = arrayOf(Hushfacebook)
+val FacebookPatches = arrayOf(
+    FacebookSettingsPatch,
+    HideSponsoredPosts,
+    BlockAdPrefetch,
+    DisableAudienceNetwork,
+    HideSponsoredStories,
+    HideSponsoredReels,
+    HideAffiliateLinks,
+    BlockPromotionalNotifications,
+    BlockAdTelemetry,
+    HideSponsoredProfilePosts,
+    HidePostPrompts,
+    HideMetaAiQuestions,
+    HideFeedsHeader
+)

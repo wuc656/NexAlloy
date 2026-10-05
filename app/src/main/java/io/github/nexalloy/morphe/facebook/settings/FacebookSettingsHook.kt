@@ -14,6 +14,7 @@ object FacebookSettingsHook {
 
     fun initialize(executor: PatchExecutor) {
         val classLoader = executor.classLoader
+        FacebookSettings.initRemote(executor.patchPreferences)
 
         // 1. Hook Application / Activity Lifecycle to keep track of current Activity
         runCatching {

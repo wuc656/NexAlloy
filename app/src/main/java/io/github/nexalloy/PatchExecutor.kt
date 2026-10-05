@@ -156,7 +156,7 @@ class PatchExecutor(
     /**
      * @see io.github.nexalloy.activity.AppPatchSettingsActivity.AppPatchSettingsFragment.onCreate
      * */
-    private val patchPreferences = xposed.getRemotePreferences(lpparam.packageName)
+    val patchPreferences = xposed.getRemotePreferences(lpparam.packageName)
 
     private lateinit var patches: Array<Patch>
     private val appliedPatches = mutableSetOf<Patch>()

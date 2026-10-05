@@ -24,6 +24,7 @@ object FacebookSettings {
     const val KEY_HIDE_FEEDS_HEADER = "hushfacebook_hide_feeds_header"
 
     private var prefs: SharedPreferences? = null
+    private var remotePrefs: SharedPreferences? = null
 
     fun init(context: Context) {
         if (prefs == null) {
@@ -31,11 +32,20 @@ object FacebookSettings {
         }
     }
 
+    fun initRemote(remote: SharedPreferences?) {
+        remotePrefs = remote
+    }
+
     fun isEnabled(key: String, default: Boolean = true): Boolean {
+        // Check remote prefs (NexAlloy UI) first, then local prefs (Facebook Dialog), fallback to default
+        if (remotePrefs != null && remotePrefs!!.contains(key)) {
+            return remotePrefs!!.getBoolean(key, default)
+        }
         return prefs?.getBoolean(key, default) ?: default
     }
 
     fun setEnabled(key: String, value: Boolean) {
         prefs?.edit()?.putBoolean(key, value)?.apply()
+        remotePrefs?.edit()?.putBoolean(key, value)?.apply()
     }
 }
