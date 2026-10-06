@@ -25,6 +25,7 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Facebook", "com.facebook.katana", FacebookPatches),
     AppPatchInfo("Messenger", "com.facebook.orca", io.github.nexalloy.morphe.messenger.MessengerPatches),
     AppPatchInfo("Telegram", "org.telegram.messenger", io.github.nexalloy.morphe.telegram.TelegramPatches),
+    AppPatchInfo("Twitch", "tv.twitch.android.app", io.github.nexalloy.morphe.twitch.TwitchPatches),
 )
 
 val patchesByPackage = appPatchConfigurations.associate { it.packageName to it.patches }
