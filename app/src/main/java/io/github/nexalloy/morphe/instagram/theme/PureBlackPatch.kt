@@ -1,3 +1,5 @@
+/*
+ * Pure black dark mode for Instagram (disabled/commented out)
 package io.github.nexalloy.morphe.instagram.theme
 
 import app.morphe.extension.shared.Logger
@@ -62,3 +64,5 @@ val InstagramPureBlackDarkMode = patch(
         }
     }
 }
+*/
+
