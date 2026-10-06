@@ -1,3 +1,7 @@
+/*
+ * Copyright 2026 HushThreads contributors
+ * https://github.com/SysAdminDoc/HushThreads
+ */
 package io.github.nexalloy.morphe.threads.ads
 
 import app.morphe.extension.shared.Logger
@@ -11,9 +15,46 @@ val HideThreadsAds = patch(
     description = "Removes sponsored and ad posts from Threads feed before they are cached or rendered (HushThreads).",
     use = true
 ) {
-    val mediaClass = runCatching { classLoader.loadClass(MEDIA_CLASS) }.getOrNull()
+    var mediaClass: Class<*>? = null
     var cachedMediaGetter: Method? = null
     var cachedIsAdMethod: Method? = null
+    var resolved = false
+
+    fun initMethods() {
+        if (resolved) return
+        resolved = true
+        try {
+            mediaClass = classLoader.loadClass("com.instagram.feed.media.Media")
+            val injectedMethod = InjectedAdCheckFingerprint.method
+            val targetDeclaringClass = injectedMethod.declaringClass
+
+            // Media's own ad check directly returns the injected check
+            for (m in mediaClass!!.declaredMethods) {
+                if (m.returnType == java.lang.Boolean.TYPE && m.parameterTypes.isEmpty() && !Modifier.isStatic(m.modifiers)) {
+                    // Let's check if method name matches DKT or any candidate that invokes injectedMethod
+                    if (m.name == "DKT") {
+                        m.isAccessible = true
+                        cachedIsAdMethod = m
+                        Logger.printInfo { "HushThreads: Found Media isAd method by direct DKT symbol: ${m.name}" }
+                        break
+                    }
+                }
+            }
+
+            // Fallback: search declared methods in Media with boolean return and no params
+            if (cachedIsAdMethod == null) {
+                for (m in mediaClass!!.declaredMethods) {
+                    if (m.returnType == java.lang.Boolean.TYPE && m.parameterTypes.isEmpty() && !Modifier.isStatic(m.modifiers)) {
+                        m.isAccessible = true
+                        cachedIsAdMethod = m
+                        break
+                    }
+                }
+            }
+        } catch (t: Throwable) {
+            Logger.printException({ "HushThreads: Failed to resolve InjectedAdCheck / isAd method" }, t)
+        }
+    }
 
     fun getMediaFromItem(item: Any?): Any? {
         if (item == null || mediaClass == null) return null
@@ -30,44 +71,22 @@ val HideThreadsAds = patch(
         return null
     }
 
-    fun isMediaAd(media: Any?): Boolean {
-        if (media == null || mediaClass == null) return false
-        if (cachedIsAdMethod != null) {
-            return runCatching { cachedIsAdMethod!!.invoke(media) as? Boolean ?: false }.getOrDefault(false)
-        }
-        for (m in mediaClass.declaredMethods) {
-            if (m.returnType == java.lang.Boolean.TYPE && m.parameterTypes.isEmpty() && !Modifier.isStatic(m.modifiers)) {
-                m.isAccessible = true
-                val res = runCatching { m.invoke(media) as? Boolean }.getOrNull()
-                if (m.name.equals("isAd", ignoreCase = true) || m.name.equals("isSponsored", ignoreCase = true)) {
-                    cachedIsAdMethod = m
-                    return res ?: false
-                }
-            }
-        }
-        for (m in mediaClass.declaredMethods) {
-            if (m.returnType == java.lang.Boolean.TYPE && m.parameterTypes.isEmpty() && !Modifier.isStatic(m.modifiers)) {
-                m.isAccessible = true
-                val res = runCatching { m.invoke(media) as? Boolean }.getOrNull() ?: false
-                if (res) {
-                    cachedIsAdMethod = m
-                    return true
-                }
-            }
-        }
-        return false
+    fun isAd(media: Any?): Boolean {
+        if (media == null || cachedIsAdMethod == null) return false
+        return runCatching { cachedIsAdMethod!!.invoke(media) as? Boolean ?: false }.getOrDefault(false)
     }
 
     FeedPageMergeFingerprint.hookMethod(object : XC_MethodHook() {
         @Suppress("UNCHECKED_CAST")
         override fun beforeHookedMethod(param: MethodHookParam) {
+            initMethods()
             val list = param.args.getOrNull(4) as? List<Any?> ?: return
             if (list.isEmpty()) return
 
             var hasAd = false
             for (item in list) {
                 val media = getMediaFromItem(item)
-                if (media != null && isMediaAd(media)) {
+                if (media != null && isAd(media)) {
                     hasAd = true
                     break
                 }
@@ -75,14 +94,13 @@ val HideThreadsAds = patch(
 
             if (!hasAd) return
 
-            Logger.printDebug { "Threads: Filtering ad posts from feed page" }
-
+            val beforeSize = list.size
             val filtered = list.filter { item ->
                 val media = getMediaFromItem(item)
-                !(media != null && isMediaAd(media))
+                !(media != null && isAd(media))
             }
-
             param.args[4] = filtered
+            Logger.printDebug { "HushThreads: Filtered ${beforeSize - filtered.size} ad posts from feed page" }
         }
     })
 }
