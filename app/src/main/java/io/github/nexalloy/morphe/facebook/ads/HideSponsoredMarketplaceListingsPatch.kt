@@ -12,7 +12,11 @@ private val ADS_ONLY_QUERIES = setOf(
     "MarketplaceHomeFeedAdsQueryRendererQuery",
     "MarketplaceHomeFeedAdsPaginationQuery",
     "MarketplaceHomeFeedBoostedListingAdsQuery",
-    "MarketplaceHomeFeedBoostedListingAdsPaginationQuery"
+    "MarketplaceHomeFeedBoostedListingAdsPaginationQuery",
+    // PDP listing page ads (v0.7.2 df1b7cd)
+    "MarketplaceProductDetailsPageRelatedAdsDetailQuery",
+    "MarketplacePDPBoostedListingAdsQuery",
+    "MarketplacePDPPersonalizedAdsQuery"
 )
 
 /**
