@@ -20,7 +20,6 @@ object FacebookSettings {
     const val KEY_HIDE_SUGGESTED_POSTS = "hushfacebook_hide_suggested_posts"
     const val KEY_FORCE_DARK_MODE = "hushfacebook_force_dark_mode"
     const val KEY_HIDE_SPONSORED_PROFILE_POSTS = "hushfacebook_hide_sponsored_profile_posts"
-    const val KEY_HIDE_POST_PROMPTS = "hushfacebook_hide_post_prompts"
     const val KEY_HIDE_META_AI_QUESTIONS = "hushfacebook_hide_meta_ai_questions"
     const val KEY_HIDE_FEEDS_HEADER = "hushfacebook_hide_feeds_header"
     const val KEY_KEEP_POST_DATES = "hushfacebook_keep_post_dates"
@@ -51,7 +50,6 @@ object FacebookSettings {
         KEY_BLOCK_PROMO_NOTIFS to "Block promotional notifications",
         KEY_BLOCK_AD_TELEMETRY to "Block ad telemetry",
         KEY_HIDE_SPONSORED_PROFILE_POSTS to "Hide sponsored profile posts",
-        KEY_HIDE_POST_PROMPTS to "Hide post prompts",
         KEY_HIDE_META_AI_QUESTIONS to "Hide Meta AI questions under posts",
         KEY_HIDE_FEEDS_HEADER to "Hide the Feeds header",
         KEY_KEEP_POST_DATES to "Keep post dates",

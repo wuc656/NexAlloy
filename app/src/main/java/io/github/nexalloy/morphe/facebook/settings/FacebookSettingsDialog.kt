@@ -71,12 +71,6 @@ object FacebookSettingsDialog {
                     defaultValue = false
                 ),
                 SettingItem(
-                    FacebookSettings.KEY_HIDE_POST_PROMPTS,
-                    "Hide post prompts",
-                    "The strip Facebook adds to some posts: suggestions, 'Are you interested in this post?', and recently commented.",
-                    defaultValue = false
-                ),
-                SettingItem(
                     FacebookSettings.KEY_HIDE_META_AI_QUESTIONS,
                     "Hide Meta AI questions under posts",
                     "Removes the row of Meta AI questions Facebook puts under posts.",

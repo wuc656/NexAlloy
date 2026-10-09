@@ -10,7 +10,6 @@ import io.github.nexalloy.morphe.facebook.ads.HideAffiliateLinks
 import io.github.nexalloy.morphe.facebook.notifications.BlockPromotionalNotifications
 import io.github.nexalloy.morphe.facebook.ads.BlockAdTelemetry
 import io.github.nexalloy.morphe.facebook.ads.HideSponsoredProfilePosts
-import io.github.nexalloy.morphe.facebook.feed.HidePostPrompts
 import io.github.nexalloy.morphe.facebook.feed.HideMetaAiQuestions
 import io.github.nexalloy.morphe.facebook.feed.HideFeedsHeader
 import io.github.nexalloy.morphe.facebook.feed.KeepPostDates
@@ -46,7 +45,6 @@ val FacebookPatches = arrayOf(
     BlockPromotionalNotifications,
     BlockAdTelemetry,
     HideSponsoredProfilePosts,
-    HidePostPrompts,
     HideMetaAiQuestions,
     HideFeedsHeader,
     KeepPostDates,
