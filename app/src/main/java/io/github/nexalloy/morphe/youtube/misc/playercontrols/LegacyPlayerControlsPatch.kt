@@ -9,6 +9,7 @@ import app.morphe.extension.shared.Utils
 import app.morphe.extension.youtube.patches.LegacyPlayerControlsPatch
 import io.github.nexalloy.HookDsl
 import io.github.nexalloy.IHookCallback
+import io.github.nexalloy.PatchExecutor
 import io.github.nexalloy.morphe.shared.misc.settings.preference.SwitchPreference
 import io.github.nexalloy.morphe.youtube.insertLiteralOverride
 import io.github.nexalloy.morphe.youtube.misc.playservice.VersionCheck
@@ -17,10 +18,14 @@ import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_30_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_31_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_04_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_05_or_greater
+import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_08_or_greater
+import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_29_or_greater
+import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_38_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_36_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_41_or_greater
 import io.github.nexalloy.morphe.youtube.misc.settings.PreferenceScreen
 import io.github.nexalloy.patch
+import io.github.nexalloy.scopedHook
 import org.luckypray.dexkit.wrap.DexMethod
 
 class ControlInitializer(
@@ -47,7 +52,7 @@ fun addLegacyBottomControl(layout: Int) {
 
 private var newPlayerControlsOverride = false
 
-internal fun disableNewPlayerControlsFeatureFlag() {
+internal fun PatchExecutor.disableNewPlayerControlsFeatureFlag() {
     if (newPlayerControlsOverride) return
     newPlayerControlsOverride = true
 
@@ -56,7 +61,20 @@ internal fun disableNewPlayerControlsFeatureFlag() {
     }
 
     if (is_21_04_or_greater && !is_21_41_or_greater) {
-        insertLiteralOverride(45752335L)
+        insertLiteralOverride(45752335L, LegacyPlayerControlsPatch::disableNewPlayerOverlays)
+
+        if (is_21_36_or_greater) {
+            // With the flag off the autonav end screen is laid out over the miniplayer
+            // as if it was the full player, so it is given the value the app has.
+            val flagMethod = NewPlayerOverlaysFeatureFlagFingerprint.member
+            ::autonavEndscreenFlagCallers.dexMethodList.forEach { method ->
+                method.hookMethod(scopedHook(flagMethod) {
+                    after {
+                        it.result = LegacyPlayerControlsPatch.getOriginalNewPlayerOverlays(it.result as Boolean)
+                    }
+                })
+            }
+        }
     }
 }
 
@@ -127,8 +145,19 @@ val LegacyPlayerControls = patch(
         disableNewPlayerControlsFeatureFlag()
     }
 
+    if (is_21_08_or_greater) {
+        // The elevated player shows the video metadata without a background over the
+        // ambient mode colors, so the light theme text can not be read.
+        // The metadata panel also has its own forced dark and light themes, which do not depend
+        // on the elevated player. With the forced dark theme and the elevated player off, the
+        // white text is drawn on the light background of the watch page, so turn all of them off
+        // and the metadata panel uses the app theme.
+        insertLiteralOverride(45757309L, false)
+        if (is_21_29_or_greater) insertLiteralOverride(45813114L, false)
+        if (is_21_38_or_greater) insertLiteralOverride(45840190L, false)
+    }
+
     // Override flags that interfere with old player icons override.
-    insertLiteralOverride(45757309, LegacyPlayerControlsPatch::allowModernPlayerLayoutFlags)
     insertLiteralOverride(45771730, LegacyPlayerControlsPatch::allowModernPlayerLayoutFlags)
     insertLiteralOverride(45763727, LegacyPlayerControlsPatch::allowModernPlayerLayoutFlags)
     fun overrideExploderLayout(id: Long) = insertLiteralOverride(

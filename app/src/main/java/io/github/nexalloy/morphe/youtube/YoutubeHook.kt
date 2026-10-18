@@ -6,20 +6,29 @@ import io.github.libxposed.api.XposedInterface
 import io.github.nexalloy.ExtensionResourceHook
 import io.github.nexalloy.addModuleAssets
 import io.github.nexalloy.atLast
+import io.github.nexalloy.hookMethod
 import io.github.nexalloy.injectHostClassLoaderToSelf
 import io.github.nexalloy.injectSelfClassLoaderToHost
 import io.github.nexalloy.morphe.shared.misc.CheckRecycleBitmapMediaSession
 import io.github.nexalloy.morphe.shared.misc.debugging.experimentalBooleanFeatureFlagFingerprint
+import io.github.nexalloy.morphe.shared.misc.debugging.experimentalIndexedBooleanFeatureFlagFingerprint
+import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_42_or_greater
 import io.github.nexalloy.morphe.youtube.ad.HideAds
+import io.github.nexalloy.morphe.youtube.interaction.channelsearch.channelSearchPatch
+import io.github.nexalloy.morphe.youtube.interaction.copytext.copyTextPatch
 import io.github.nexalloy.morphe.youtube.interaction.copyvideolink.CopyVideoLinkButtonPatch
 import io.github.nexalloy.morphe.youtube.interaction.downloads.Downloads
+import io.github.nexalloy.morphe.youtube.interaction.seekbar.seekbarPatch
 import io.github.nexalloy.morphe.youtube.interaction.swipecontrols.SwipeControls
 import io.github.nexalloy.morphe.youtube.layout.buttons.action.HideVideoActionButtons
 import io.github.nexalloy.morphe.youtube.layout.buttons.navigation.NavigationBar
 import io.github.nexalloy.morphe.youtube.layout.captions.AutoCaptions
 import io.github.nexalloy.morphe.youtube.layout.dearrow.deArrowPatch
+import io.github.nexalloy.morphe.youtube.layout.flyout.addToQueuePatch
 import io.github.nexalloy.morphe.youtube.layout.hide.general.HideLayoutComponents
 import io.github.nexalloy.morphe.youtube.layout.hide.shorts.HideShortsComponents
+import io.github.nexalloy.morphe.youtube.layout.returnyoutubedislike.returnYouTubeDislikePatch
+import io.github.nexalloy.morphe.youtube.layout.sharesheet.openSystemShareSheetPatch
 import io.github.nexalloy.morphe.youtube.layout.shortsnoresume.DisableShortsResumingOnStartup
 import io.github.nexalloy.morphe.youtube.layout.sponsorblock.SponsorBlock
 import io.github.nexalloy.morphe.youtube.layout.startpage.changeStartPagePatch
@@ -28,6 +37,7 @@ import io.github.nexalloy.morphe.youtube.misc.backgroundplayback.BackgroundPlayb
 import io.github.nexalloy.morphe.youtube.misc.debugging.EnableDebugging
 import io.github.nexalloy.morphe.youtube.misc.privacy.SanitizeSharingLinks
 import io.github.nexalloy.morphe.youtube.misc.settings.SettingsHook
+import io.github.nexalloy.morphe.youtube.misc.whitelist.channelWhitelistPatch
 import io.github.nexalloy.morphe.youtube.shared.YOUTUBE_MAIN_ACTIVITY_CLASS_TYPE
 import io.github.nexalloy.morphe.youtube.video.audio.ForceOriginalAudio
 import io.github.nexalloy.morphe.youtube.video.codecs.DisableVideoCodecs
@@ -61,13 +71,19 @@ fun insertLiteralOverride(id: Long, override: (Boolean) -> Boolean) {
 }
 
 val FeatureOverride = patch {
-    ::experimentalBooleanFeatureFlagFingerprint.hookMethod {
-        priority = XposedInterface.PRIORITY_DEFAULT - 1
-        after {
-            val id = it.args.atLast(2) as Long
-            val orig = it.result as Boolean
-            val match = overrides[id] ?: return@after
-            it.result = match(orig)
+    val methods = mutableListOf(::experimentalBooleanFeatureFlagFingerprint.method)
+    if (is_21_42_or_greater) {
+        methods += ::experimentalIndexedBooleanFeatureFlagFingerprint.method
+    }
+    methods.forEach { method ->
+        method.hookMethod {
+            priority = XposedInterface.PRIORITY_DEFAULT - 1
+            after {
+                val id = it.args.atLast(2) as Long
+                val orig = it.result as Boolean
+                val match = overrides[id] ?: return@after
+                it.result = match(orig)
+            }
         }
     }
 }
@@ -78,6 +94,8 @@ val YouTubePatches = arrayOf(
     SanitizeSharingLinks,
     HideAds,
     SponsorBlock,
+    copyTextPatch,
+    returnYouTubeDislikePatch,
     CopyVideoLinkButtonPatch,
     Downloads,
     HideShortsComponents,
@@ -93,9 +111,14 @@ val YouTubePatches = arrayOf(
     ForceOriginalAudio,
     DisableVideoCodecs,
     deArrowPatch,
+    openSystemShareSheetPatch,
+    seekbarPatch,
+    addToQueuePatch,
     BypassImageRegionRestrictionsPatch,
     CheckRecycleBitmapMediaSession,
     changeStartPagePatch,
+    channelSearchPatch,
+    channelWhitelistPatch,
     // make sure settingsHook at end to build preferences
     SettingsHook,
     FeatureOverride

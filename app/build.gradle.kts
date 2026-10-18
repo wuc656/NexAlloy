@@ -135,6 +135,11 @@ kotlin {
 }
 tasks.withType<Test> {
     useJUnitPlatform()
+    val fingerprintReport = layout.buildDirectory.file("reports/fingerprints/$name.json")
+    systemProperty("fingerprints.report", fingerprintReport.get().asFile.absolutePath)
+    inputs.files(fileTree("binaries")).withPropertyName("fingerprintApks")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.file(fingerprintReport)
 }
 
 dependencies {
@@ -281,6 +286,7 @@ abstract class CopyResourcesTask @Inject constructor() : DefaultTask() {
         outputDir.deleteRecursively()
 
         val resourcePaths = mapOf(
+            "channelsearch/drawable" to null,
             "qualitybutton/drawable" to null,
             "settings/drawable" to null,
             "settings/menu" to null,
