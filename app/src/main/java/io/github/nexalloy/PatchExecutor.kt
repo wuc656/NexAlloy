@@ -20,6 +20,7 @@ import io.github.libxposed.api.XposedInterface.Hooker
 import io.github.libxposed.api.XposedModuleInterface
 import io.github.nexalloy.BuildConfig.DEBUG
 import io.github.nexalloy.morphe.Fingerprint
+import io.github.nexalloy.morphe.FingerprintQueryCache
 import org.luckypray.dexkit.DexKitBridge
 import org.luckypray.dexkit.DexKitCacheBridge
 import org.luckypray.dexkit.annotations.DexKitExperimentalApi
@@ -177,11 +178,18 @@ class PatchExecutor(
         val t = measureTimeMillis {
             loadCacheIfValid()
             try {
+                XposedBridge.log("NexAlloy version: ${BuildConfig.BUILD_TYPE} ${BuildConfig.VERSION_NAME} ${BuildConfig.COMMIT_HASH}")
+                XposedBridge.log("${lpparam.applicationInfo.packageName} version: ${getAppVersion()}")
+
                 executePatches()
                 finalizePatching()
                 logDebugInfo()
             } finally {
-                dexkit.close()
+                try {
+                    dexkit.close()
+                } finally {
+                    FingerprintQueryCache.shared.clearClosedBridges()
+                }
             }
         }
         Logger.printDebug { "${lpparam.packageName} handleLoadPackage: ${t}ms" }
@@ -237,7 +245,6 @@ class PatchExecutor(
     private fun logDebugInfo() {
         val success = failedPatches.isEmpty()
         if (DEBUG) {
-            XposedBridge.log("${lpparam.applicationInfo.packageName} version: ${getAppVersion()}")
             if (success) {
                 Utils.showToastLong("apply patches success")
             }
