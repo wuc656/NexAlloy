@@ -8,7 +8,6 @@ import io.github.nexalloy.PatchExecutor
 import io.github.nexalloy.bindProxy
 import io.github.nexalloy.createProxy
 import io.github.nexalloy.findFirstFieldByExactType
-import io.github.nexalloy.getStaticObjectField
 import io.github.nexalloy.hookMethod
 import io.github.nexalloy.morphe.shared.misc.litho.context.conversionContextPatch
 import io.github.nexalloy.morphe.shared.misc.textcomponent.hookSpannableString
@@ -22,12 +21,18 @@ import io.github.nexalloy.morphe.youtube.video.playerresponse.addPlayerResponseM
 import io.github.nexalloy.morphe.youtube.video.videoid.VideoId
 import io.github.nexalloy.morphe.youtube.video.videoid.hookPlayerResponseVideoId
 import io.github.nexalloy.morphe.youtube.video.videoid.hookPlayerResponsePlaylistId
-import io.github.nexalloy.morphe.youtube.video.videoid.videoIdHooks
+import io.github.nexalloy.morphe.youtube.video.videoid.hookVideoId
 import io.github.nexalloy.new
 import io.github.nexalloy.patch
 import io.github.nexalloy.scopedHook
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
+
+private val onCreateHooks = mutableListOf<(VideoInformation.PlaybackController) -> Unit>()
+private val onCreateHooksMDX = mutableListOf<(VideoInformation.PlaybackController) -> Unit>()
+private val videoTimeHooks = mutableListOf<(Long) -> Unit>()
+private val videoSpeedChangedHooks = mutableListOf<(Float) -> Unit>()
+private val userSelectedPlaybackSpeedHooks = mutableListOf<(Float) -> Unit>()
 
 /**
  * Hook the player controller.  Called when a video is opened or the current video is changed.
@@ -35,26 +40,55 @@ import java.lang.reflect.Method
  * Note: This hook is called very early and is called before the video id, video time, video length,
  * and many other data fields are set.
  *
- * @param targetMethodClass The descriptor for the class to invoke when the player controller is created.
- * @param targetMethodName The name of the static method to invoke when the player controller is created.
+ * @param hook Receives the newly created player controller.
  */
-val onCreateHook = mutableListOf<(VideoInformation.PlaybackController) -> Unit>()
-val videoTimeHooks = mutableListOf<(Long) -> Unit>()
+fun onCreateHook(hook: (controller: VideoInformation.PlaybackController) -> Unit) {
+    onCreateHooks.add(hook)
+}
 
-/*
+/**
+ * Hooks the MDX player director when casting to another device.
+ */
+internal fun onCreateHookMDX(hook: (controller: VideoInformation.PlaybackController) -> Unit) {
+    onCreateHooksMDX.add(hook)
+}
+
+/**
+ * Hooks the video time, usually once per second.
+ */
+fun videoTimeHook(hook: (videoTime: Long) -> Unit) {
+    videoTimeHooks.add(hook)
+}
+
+/**
  * Hook when the video speed is changed for any reason _except when the user manually selects a new speed_.
- * */
-val videoSpeedChangedHook = mutableListOf<(Float) -> Unit>()
+ */
+fun videoSpeedChangedHook(hook: (speed: Float) -> Unit) {
+    videoSpeedChangedHooks.add(hook)
+}
 
 /**
  * Hook the video speed selected by the user.
  */
-val userSelectedPlaybackSpeedHook = mutableListOf<(Float) -> Unit>()
+fun userSelectedPlaybackSpeedHook(hook: (speed: Float) -> Unit) {
+    userSelectedPlaybackSpeedHooks.add(hook)
+}
+
+/**
+ * Skips a player status change when the hook returns true.
+ */
+internal fun PatchExecutor.playerStatusOverrideHook(hook: (status: Enum<*>) -> Boolean) {
+    ::playerStatusMethod.hookMethod {
+        before {
+            if (hook(it.args[0] as Enum<*>)) it.result = null
+        }
+    }
+}
 
 lateinit var setPlaybackSpeedMethod: Method
 
 fun onUserSelectedPlaybackSpeed(speed: Float) {
-    userSelectedPlaybackSpeedHook.forEach { it(speed) }
+    userSelectedPlaybackSpeedHooks.forEach { it(speed) }
 }
 
 class PlaybackController(
@@ -124,8 +158,7 @@ val VideoInformationPatch = patch(
 
     //region playerController
     PlayerInitFingerprint.apply {
-        val seekSourceType = ::seekSourceType.clazz
-        val seekSourceNone = seekSourceType.getStaticObjectField("a")!!
+        val seekSourceNone = ::seekSourceUnknown.field.get(null)!!
         hookMethod {
             val seekFingerprint = SeekFingerprint.method
             val seekRelativeFingerprint = SeekRelativeFingerprint.method
@@ -139,7 +172,7 @@ val VideoInformationPatch = patch(
                     getVideoTime,
                     seekSourceNone,
                 )
-                onCreateHook.forEach { it(playerController) }
+                onCreateHooks.forEach { it(playerController) }
             }
         }
     }
@@ -148,8 +181,7 @@ val VideoInformationPatch = patch(
 
     //region mdxPlayerDirector
     MdxPlayerDirectorSetVideoStageFingerprint.apply {
-        val seekSourceType = ::mdxSeekSourceType.clazz
-        val seekSourceNone = seekSourceType.getStaticObjectField("a")!!
+        val seekSourceNone = ::mdxSeekSourceUnknown.field.get(null)!!
         hookMethod {
             val mdxSeekFingerprint = MdxSeekFingerprint.method
             val mdxSeekRelativeFingerprint = MdxSeekRelativeFingerprint.method
@@ -163,7 +195,7 @@ val VideoInformationPatch = patch(
                     getVideoTime,
                     seekSourceNone
                 )
-                VideoInformation.initializeMDX(playerController)
+                onCreateHooksMDX.forEach { it(playerController) }
             }
         }
     }
@@ -184,7 +216,7 @@ val VideoInformationPatch = patch(
     /*
      * Inject call for video ids
      */
-    videoIdHooks.add { VideoInformation.setVideoId(it) }
+    hookVideoId(VideoInformation::setVideoId)
     hookPlayerResponsePlaylistId(VideoInformation::setPlayerResponsePlaylistId)
     hookPlayerResponseVideoId(VideoInformation::setPlayerResponseVideoId)
 
@@ -214,7 +246,7 @@ val VideoInformationPatch = patch(
 
     SpeedLimiterFingerprint.hookMethod {
         before { param ->
-            videoSpeedChangedHook.forEach { it(param.args[0] as Float) }
+            videoSpeedChangedHooks.forEach { it(param.args[0] as Float) }
         }
     }
 
@@ -223,7 +255,7 @@ val VideoInformationPatch = patch(
     ::setPlaybackSpeedMethodReference.hookMethod {
         before { param ->
             // Hook when the video speed is changed for any reason _except when the user manually selects a new speed_.
-            videoSpeedChangedHook.forEach { it(param.args[0] as Float) }
+            videoSpeedChangedHooks.forEach { it(param.args[0] as Float) }
         }
     }
 
@@ -294,9 +326,10 @@ val VideoInformationPatch = patch(
 
     addExoPlayerHooks()
 
-    onCreateHook.add { VideoInformation.initialize(it) }
-    videoSpeedChangedHook.add { VideoInformation.videoSpeedChanged(it) }
-    userSelectedPlaybackSpeedHook.add { VideoInformation.userSelectedPlaybackSpeed(it) }
+    onCreateHook(VideoInformation::initialize)
+    onCreateHookMDX(VideoInformation::initializeMDX)
+    videoSpeedChangedHook(VideoInformation::videoSpeedChanged)
+    userSelectedPlaybackSpeedHook(VideoInformation::userSelectedPlaybackSpeed)
 
     // TODO Addon
 }
