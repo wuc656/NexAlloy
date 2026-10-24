@@ -103,4 +103,16 @@ val HideThreadsAds = patch(
             Logger.printDebug { "HushThreads: Filtered ${beforeSize - filtered.size} ad posts from feed page" }
         }
     })
+
+    runCatching {
+        ::permalinkAdResultConstructor.hookMethod(object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                param.args[0] = java.util.Collections.emptyList<Any?>()
+                param.args[1] = 0
+                Logger.printDebug { "HushThreads: Cleared permalink ads from opened post replies" }
+            }
+        })
+    }.onFailure {
+        Logger.printDebug { "HushThreads: Failed to hook permalinkAdResultConstructor: ${it.message}" }
+    }
 }

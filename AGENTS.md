@@ -11,14 +11,14 @@
 
 ### Preserved Fork Customizations & Hook Targets
 - **Facebook** ([SysAdminDoc/Hushfacebook](https://github.com/SysAdminDoc/Hushfacebook))
-  - Feed: Intercept `FeedUnitCollectionManager.addNewEdgeToCollection` to drop `SPONSORED` / `PROMOTION` categories; hook `EdgeSwapRun` to skip ad swaps.
-  - Stories, Reels & Marketplace: Filter ad story buckets, ad reels, and sponsored listings/PDP.
+  - Feed: Intercept `FeedUnitCollectionManager.addNewEdgeToCollection` to drop `SPONSORED` / `PROMOTION` categories; hook `EdgeSwapRun` to skip ad swaps; suppress Meta AI questions and AI related posts (`InlineRelatedPostsPlugin`).
+  - Stories, Reels & Marketplace: Filter ad story buckets, hold Reels & feed Reels row ad pools (`FbShortsSponsoredPool`) to null, and filter sponsored listings/PDP.
   - Telemetry & Prefetch: Block background ad prefetch workers and Audience Network SDK initialization.
   - UI & Sharing: Long-press Facebook logo to open `FacebookSettingsDialog`; strip tracking parameters (`fbclid`) from shared URLs.
   - Note: `Hide post prompts` was intentionally and permanently removed. Do not restore.
 - **Threads** ([SysAdminDoc/HushThreads](https://github.com/SysAdminDoc/HushThreads))
   - Hook `adInjectorFingerprint` to return `false`.
-  - Purge injected sponsored threads from feed cache arrays.
+  - Purge injected sponsored threads from feed cache arrays and suppress permalink ads in opened post replies.
 - **Instagram** ([SysAdminDoc/HushGram](https://github.com/SysAdminDoc/HushGram))
   - Hook `adInjectorFingerprint` to return `false` (zero-gap ad suppression across feed, stories, and reels).
 - **Telegram** ([SysAdminDoc/HushTelegram](https://github.com/SysAdminDoc/HushTelegram))

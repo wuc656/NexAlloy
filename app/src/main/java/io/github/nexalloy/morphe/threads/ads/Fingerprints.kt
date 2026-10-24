@@ -6,12 +6,15 @@ package io.github.nexalloy.morphe.threads.ads
 
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
+import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.literal
 import io.github.nexalloy.morphe.methodCall
 
 internal const val FEED_CACHE = "Lcom/instagram/barcelona/feed/data/cache/BarcelonaFeedCache;"
 internal const val MEDIA = "Lcom/instagram/feed/media/Media;"
 internal val INJECTED_FIELD = "injected".hashCode()
+internal const val PERMALINK_AD_FETCHER = "Lcom/instagram/barcelona/sponsored/permalink/ThreadsPermalinkAdFetcher;"
+internal const val PERMALINK_ADS_PATH = "text_feed/threads_permalink_ads/"
 
 /**
  * BarcelonaFeedCache.addAndSaveItemsFromFeedFetchSuccess:
@@ -48,3 +51,24 @@ internal object InjectedAdCheckFingerprint : Fingerprint(
         literal(INJECTED_FIELD)
     )
 )
+
+/**
+ * PermalinkAdFetchFingerprint:
+ * Fetches ads for an opened post's replies.
+ */
+internal object PermalinkAdFetchFingerprint : Fingerprint(
+    definingClass = PERMALINK_AD_FETCHER,
+    returnType = "Ljava/lang/Object;",
+    strings = listOf(PERMALINK_ADS_PATH)
+)
+
+val permalinkAdResultConstructor = findMethodDirect {
+    val fetchMethod = PermalinkAdFetchFingerprint.run()
+    val initInstruction = fetchMethod.instructions.firstOrNull { inst ->
+        val ref = inst.methodRef ?: return@firstOrNull false
+        ref.isConstructor && ref.paramTypeNames.size == 2 &&
+            ref.paramTypeNames[0].contains("List") &&
+            ref.paramTypeNames[1] == "int"
+    } ?: error("Constructor not found in PermalinkAdFetchMethod")
+    initInstruction.methodRef!!
+}

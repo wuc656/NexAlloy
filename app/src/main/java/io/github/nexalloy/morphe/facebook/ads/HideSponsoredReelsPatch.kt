@@ -23,6 +23,24 @@ internal object ReelsAdPoolVend2Fingerprint : Fingerprint(
     }
 )
 
+internal object FbShortsAdPoolVendFingerprint : Fingerprint(
+    custom = {
+        declaredClass {
+            usingStrings("FBShortsSponsoredPool.")
+        }
+        paramTypes(null, null, "java.util.List", "int")
+    }
+)
+
+internal object FbShortsAdPoolVendValidateFingerprint : Fingerprint(
+    custom = {
+        declaredClass {
+            usingStrings("FBShortsSponsoredPool.")
+        }
+        paramTypes("com.facebook.auth.usersession.FbUserSession", null, null, null, "java.util.List", "java.util.List", "int", "boolean")
+    }
+)
+
 val HideSponsoredReels = patch(
     name = "Hide sponsored reels",
     description = "Removes ads from Reels and Watch, including product banners over a reel and ads inside a video.",
@@ -46,17 +64,23 @@ val HideSponsoredReels = patch(
         }
     }
 
-    // VideoHomeSponsoredPool (-WVCDF-NO-AD, v0.7.2 e100e0a)
-    listOf(ReelsAdPoolVend1Fingerprint, ReelsAdPoolVend2Fingerprint).forEach { fp ->
-        fp.hookMethod {
-            before { param ->
-                if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
-                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_REELS, true
-                    )) return@before
-                Logger.printDebug { "Hide sponsored reels: Held VideoHomeSponsoredPool ad vend to null" }
-                param.result = null
+    // VideoHomeSponsoredPool (-WVCDF-NO-AD) and FbShortsSponsoredPool (FBShortsSponsoredPool.)
+    listOf(
+        ReelsAdPoolVend1Fingerprint,
+        ReelsAdPoolVend2Fingerprint,
+        FbShortsAdPoolVendFingerprint,
+        FbShortsAdPoolVendValidateFingerprint
+    ).forEach { fp ->
+        runCatching {
+            fp.hookMethod {
+                before { param ->
+                    if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                            io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_REELS, true
+                        )) return@before
+                    Logger.printDebug { "Hide sponsored reels: Held ad pool vend to null" }
+                    param.result = null
+                }
             }
         }
     }
 }
-
