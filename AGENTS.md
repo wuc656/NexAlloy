@@ -15,6 +15,7 @@
   - Stories, Reels & Marketplace: Filter ad story buckets, ad reels, and sponsored listings/PDP.
   - Telemetry & Prefetch: Block background ad prefetch workers and Audience Network SDK initialization.
   - UI & Sharing: Long-press Facebook logo to open `FacebookSettingsDialog`; strip tracking parameters (`fbclid`) from shared URLs.
+  - Note: `Hide post prompts` was intentionally and permanently removed. Do not restore.
 - **Threads** ([SysAdminDoc/HushThreads](https://github.com/SysAdminDoc/HushThreads))
   - Hook `adInjectorFingerprint` to return `false`.
   - Purge injected sponsored threads from feed cache arrays.
@@ -37,7 +38,9 @@
   - `AppPatchInfo.kt`: Package name to patch mapping.
   - `morphe/`: Ported patches grouped by target app (`youtube`, `facebook`, `instagram`, `threads`, `telegram`, `twitch`, `messenger`, `shared`).
 - `morphe-patches` & `morphe-patches-library`: Git submodules integrating Morphe upstream assets and stubs.
-- `.github/workflows/release.yml`: Release CI triggered on pushing tags matching `*.*.*`.
+- `.github/workflows/`:
+  - `release.yml`: Release CI triggered on pushing tags matching `*.*.*` or manual `workflow_dispatch`.
+  - `android.yml`: Nightly/branch CI triggered on push to `main` or manual `workflow_dispatch`.
 
 ## Build & Test Commands
 ```bash
@@ -52,6 +55,8 @@ git submodule update --init --recursive
 ```
 
 ## Routine Upstream Synchronization
+> **Autonomous Execution**: When the user provides an upstream commit link or asks to sync upstream, execute the entire 5-step pipeline automatically from start to finish without pausing for confirmation unless an unresolvable merge conflict arises.
+
 1. **Fetch & Merge**:
    ```bash
    git fetch upstream && git merge upstream/main --no-edit
@@ -69,16 +74,16 @@ git submodule update --init --recursive
    ```bash
    git tag -a v1.0.X-test -m "v1.0.X-test"
    ```
-   *Increment `X` from the latest `v1.0.*-test` tag.*
+   *Increment `X` from the latest `v1.0.*-test` tag (e.g. `v1.0.55-test` -> `v1.0.56-test`).*
 5. **Push to Origin**:
    ```bash
    git push origin main && git push origin <tag>
    ```
 
 ## Git & GPG Guidelines
-- **Remotes**: `origin` is user fork; `upstream` is `https://github.com/NexAlloy/NexAlloy.git`.
+- **Remotes**: `origin` is user fork (`https://github.com/wuc656/NexAlloy`); `upstream` is `https://github.com/NexAlloy/NexAlloy.git`.
 - **Signed Commits**: All commits must be GPG signed (`git commit -S`).
-- **Loopback Priming** (for automated or non-interactive sessions):
+- **Loopback Priming** (for automated or non-interactive sessions to avoid GUI pinentry timeouts):
   ```python
   import subprocess as s
   s.Popen(['gpg', '--batch', '--yes', '--passphrase-fd', '0', '--pinentry-mode', 'loopback', '-s', '--output', 'NUL'], stdin=s.PIPE).communicate(b'<PASSPHRASE>')
