@@ -168,8 +168,8 @@ private val resourceLoader by lazy @RequiresApi(Build.VERSION_CODES.R) {
 }
 
 fun Context.addModuleAssets() {
-    val modulePath = File(modulePath)
-    if (!modulePath.exists()) {
+    val moduleFile = File(modulePath)
+    if (!moduleFile.exists()) {
         Utils.showToastLong("NexAlloy has been updated")
         Utils.restartApp(this)
     }
@@ -179,7 +179,7 @@ fun Context.addModuleAssets() {
         return
     }
 
-    resources.assets.callMethod("addAssetPath", modulePath)
+    resources.assets.callMethod("addAssetPath", moduleFile.path)
 }
 
 fun injectHostClassLoaderToSelf(self: ClassLoader, host: ClassLoader) {

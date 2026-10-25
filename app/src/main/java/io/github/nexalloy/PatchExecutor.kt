@@ -397,6 +397,23 @@ class PatchExecutor(
 }
 
 val ExtensionResourceHook = patch {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+        // WebView and configuration changes replace AssetManagers, dropping manually added paths.
+        // Add module assets before the replacement becomes visible to background threads.
+        val hostResourcePath = appContext.applicationInfo.sourceDir
+        XposedHelpers.findMethodExact(
+            "android.app.ResourcesManager",
+            classLoader,
+            "createAssetManager",
+            "android.content.res.ResourcesKey"
+        ).hookMethod {
+            after { param ->
+                if (param.args[0].getObjectField("mResDir") != hostResourcePath) return@after
+                param.result?.callMethod("addAssetPath", modulePath)
+            }
+        }
+    }
+
     appContext.addModuleAssets()
     ResourceUtils.fallbackPackageName = BuildConfig.APPLICATION_ID
 
