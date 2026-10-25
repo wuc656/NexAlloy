@@ -1,5 +1,6 @@
 package io.github.nexalloy.morphe.youtube.video.videoid
 
+import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.morphe.findMethodDirect
 
 val videoIdFingerprint = findMethodDirect {
@@ -10,6 +11,7 @@ val videoIdFingerprint = findMethodDirect {
     }.single()
 }
 
+@get:AllowAbstract
 val PlayerResponseModel_getVideoId = findMethodDirect {
     videoIdFingerprint().let { method ->
         method.invokes.distinct().single {

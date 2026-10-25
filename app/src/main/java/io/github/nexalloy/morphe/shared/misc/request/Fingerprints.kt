@@ -1,5 +1,6 @@
 package io.github.nexalloy.morphe.shared.misc.request
 
+import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.TargetApp
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
@@ -35,6 +36,7 @@ internal object BuildRequestFingerprint : Fingerprint(
 )
 
 @get:TargetApp("youtube")
+@get:AllowAbstract
 val requestUrlMethod = findMethodDirect {
     val method = BuildRequestFingerprint()
     val builder = method.instructions.indexOfFirst { it.methodRef?.name == "newUrlRequestBuilder" }

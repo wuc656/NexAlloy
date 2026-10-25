@@ -152,6 +152,8 @@ val getNavIconResIdFingerprint = findMethodListDirect {
         matcher {
             paramTypes(navigationEnumClass.name, "boolean")
             returnType = "int"
+            // NexAlloy: newer versions also declare this signature on an abstract provider.
+            not { accessFlags(AccessFlags.ABSTRACT.modifier) }
         }
     }
 }

@@ -1,5 +1,6 @@
 package io.github.nexalloy.morphe.shared
 
+import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.Opcode
@@ -70,6 +71,7 @@ internal object SpannableStringBuilderFingerprint : Fingerprint(
     )
 )
 
+@get:AllowAbstract
 val spannableStringBuilderGetSpannedMethod = findMethodDirect {
     SpannableStringBuilderFingerprint.instructionMatches[0].instruction.methodRef!!
 }

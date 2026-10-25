@@ -1,5 +1,6 @@
 package io.github.nexalloy.morphe.shared.misc.litho.filter
 
+import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.InstructionLocation.MatchAfterImmediately
@@ -25,10 +26,12 @@ internal object AccessibilityIdFingerprint : Fingerprint(
     )
 )
 
+@get:AllowAbstract
 val AccessibilityIdMethod = findMethodDirect {
     AccessibilityIdFingerprint.instructionMatches.first().instruction.methodRef!!
 }
 
+@get:AllowAbstract
 val accessibilityTextMethod = findMethodDirect {
     Fingerprint(
         returnType = "V",

@@ -13,6 +13,7 @@ import org.luckypray.dexkit.result.ClassData
 import org.luckypray.dexkit.result.FieldData
 import org.luckypray.dexkit.result.MethodData
 import java.io.File
+import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -46,6 +47,18 @@ class FingerprintsKtTest(val apkPath: Path) {
         fun writeJsonReport() = FingerprintTestReport.write()
     }
 
+    private fun validateMatch(value: Any?, allowAbstract: Boolean) {
+        when (value) {
+            is MethodData -> check(allowAbstract || !Modifier.isAbstract(value.modifiers)) {
+                "Matched abstract method: ${value.descriptor}"
+            }
+            is List<*> -> {
+                assertTrue(value.isNotEmpty())
+                value.forEach { validateMatch(it, allowAbstract) }
+            }
+        }
+    }
+
     private fun Any?.toMatchDescriptor(): String = when (this) {
         is ClassData -> descriptor
         is FieldData -> descriptor
@@ -56,16 +69,14 @@ class FingerprintsKtTest(val apkPath: Path) {
     /**
      * Run a named fingerprint test, printing result and timing.
      */
-    private fun runTest(name: String, block: DexKitBridge.() -> Any?) {
+    private fun runTest(name: String, annotations: Array<Annotation>, block: DexKitBridge.() -> Any?) {
         print("$name: ")
         val started = System.nanoTime()
         try {
             val value = block(dexkit)
+            validateMatch(value, annotations.any { it is AllowAbstract })
             val matches = when (value) {
-                is List<*> -> {
-                    assertTrue(value.isNotEmpty())
-                    value.map { it.toMatchDescriptor() }
-                }
+                is List<*> -> value.map { it.toMatchDescriptor() }
                 null -> emptyList()
                 else -> listOf(value.toMatchDescriptor())
             }
@@ -171,7 +182,7 @@ class FingerprintsKtTest(val apkPath: Path) {
                 val name = method.name.drop(3) // drop "get" prefix
                 if (shouldSkip(name, method.annotations, app)) return@forEach
 
-                runTest(name) {
+                runTest(name, method.annotations) {
                     @Suppress("UNCHECKED_CAST")
                     val func = method(null) as FindFunc
                     func()
@@ -201,7 +212,7 @@ class FingerprintsKtTest(val apkPath: Path) {
             val name = cls.simpleName
             if (shouldSkip(name, cls.annotations, app)) continue
 
-            runTest(name) {
+            runTest(name, cls.annotations) {
                 instance.run()
             }
         }

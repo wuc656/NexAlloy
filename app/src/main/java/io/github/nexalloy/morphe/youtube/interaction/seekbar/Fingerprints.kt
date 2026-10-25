@@ -10,6 +10,7 @@
 
 package io.github.nexalloy.morphe.youtube.interaction.seekbar
 
+import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.RequireAppVersion
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
@@ -408,6 +409,7 @@ val slideToSeekCheckCallers = findMethodListDirect {
     }.also { require(it.isNotEmpty()) }
 }
 
+@get:AllowAbstract
 val updateSeekbarPointMethod = findMethodDirect {
     SeekbarUpdatePointFingerprint.instructionMatches[1].instruction.methodRef!!
 }

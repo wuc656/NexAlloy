@@ -1,5 +1,6 @@
 package io.github.nexalloy.morphe.youtube.video.information
 
+import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.RequireAppVersion
 import io.github.nexalloy.SkipTest
 import io.github.nexalloy.morphe.AccessFlags
@@ -58,16 +59,19 @@ private fun getChannelIdFingerprint(playerResponseType: String) = Fingerprint(
     )
 )
 
+@get:AllowAbstract
 internal val playerResponseIsLiveMethod = findMethodDirect {
     val playerResponseType = channelInformationMethods().first().paramTypes.first().descriptor
     getChannelIdFingerprint(playerResponseType).instructionMatches[0].instruction.methodRef!!
 }
 
+@get:AllowAbstract
 internal val playerResponseChannelIdMethod = findMethodDirect {
     val playerResponseType = channelInformationMethods().first().paramTypes.first().descriptor
     getChannelIdFingerprint(playerResponseType).instructionMatches[1].instruction.methodRef!!
 }
 
+@get:AllowAbstract
 internal val playerResponseChannelNameMethod = findMethodDirect {
     val playerResponseType = channelInformationMethods().first().paramTypes.first().descriptor
     Fingerprint(
@@ -83,6 +87,7 @@ internal val playerResponseChannelNameMethod = findMethodDirect {
 }
 
 @get:RequireAppVersion("21.29.000")
+@get:AllowAbstract
 internal val playerResponseVideoTitleMethod = findMethodDirect {
     val playerResponseType = channelInformationMethods().first().paramTypes.first().descriptor
     Fingerprint(
