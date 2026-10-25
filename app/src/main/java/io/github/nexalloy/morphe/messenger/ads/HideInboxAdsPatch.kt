@@ -20,7 +20,8 @@ val HideInboxAds = patch(
         }
     }.getOrNull()
 
-    InboxAdsProcessorFingerprint.hookMethod(object : XC_MethodHook() {
+    runCatching {
+        InboxAdsProcessorFingerprint.hookMethod(object : XC_MethodHook() {
         override fun afterHookedMethod(param: MethodHookParam) {
             val list = param.result as? List<*> ?: return
             if (list.isEmpty()) return
@@ -52,4 +53,5 @@ val HideInboxAds = patch(
             }
         }
     })
+    }
 }

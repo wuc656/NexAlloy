@@ -28,7 +28,6 @@ internal object AddNewEdgeToCollectionFingerprint : Fingerprint(
  * an existing one, bypassing the funnel above.
  */
 internal object EdgeSwapRunFingerprint : Fingerprint(
-    name = "run",
     returnType = "V",
     parameters = listOf(),
     strings = listOf("Edge swap dropped", "sizeBefore", "sizeAfter"),

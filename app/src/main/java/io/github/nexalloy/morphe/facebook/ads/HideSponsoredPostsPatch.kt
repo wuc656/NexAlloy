@@ -36,11 +36,11 @@ val HideSponsoredPosts = patch(
     name = "Hide sponsored and suggested posts",
     description = "Removes sponsored, promoted, and suggested posts from the news feed.",
 ) {
-    val edgeClass = classLoader.loadClass(FEED_UNIT_EDGE_CLASS)
-    val categoryClass = classLoader.loadClass(FEED_STORY_CATEGORY_CLASS)
-    val categoryGetter: Method = edgeClass.declaredMethods.single {
+    val edgeClass = runCatching { classLoader.loadClass(FEED_UNIT_EDGE_CLASS) }.getOrNull()
+    val categoryClass = runCatching { classLoader.loadClass(FEED_STORY_CATEGORY_CLASS) }.getOrNull()
+    val categoryGetter: Method? = edgeClass?.declaredMethods?.firstOrNull {
         it.returnType == categoryClass && it.parameterTypes.isEmpty()
-    }.apply { isAccessible = true }
+    }?.apply { isAccessible = true }
 
     var cachedFeedUnitGetter: Method? = null
 
@@ -72,7 +72,7 @@ val HideSponsoredPosts = patch(
 
     fun isAd(edge: Any?): Boolean {
         if (edge == null) return false
-        val category = runCatching { categoryGetter.invoke(edge) as? Enum<*> }.getOrNull()
+        val category = runCatching { categoryGetter?.invoke(edge) as? Enum<*> }.getOrNull()
         if (category?.name in HIDDEN_CATEGORIES) {
             return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
                 io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_POSTS, true
@@ -85,7 +85,7 @@ val HideSponsoredPosts = patch(
         }
 
         // Search for the feed unit getter
-        for (method in edgeClass.declaredMethods) {
+        for (method in edgeClass?.declaredMethods.orEmpty()) {
             if (method.parameterTypes.isNotEmpty() || method.returnType.isPrimitive || method.returnType == String::class.java) continue
             method.isAccessible = true
             val obj = runCatching { method.invoke(edge) }.getOrNull() ?: continue
@@ -100,44 +100,49 @@ val HideSponsoredPosts = patch(
         return false
     }
 
-    AddNewEdgeToCollectionFingerprint.hookMethod {
-        before { param ->
-            val edge = param.args.firstOrNull { edgeClass.isInstance(it) }
-            if (isAd(edge)) {
-                Logger.printDebug { "Hide sponsored or suggested feed edge" }
-                param.result = false
+    runCatching {
+        AddNewEdgeToCollectionFingerprint.hookMethod {
+            before { param ->
+                val edge = param.args.firstOrNull { edgeClass?.isInstance(it) == true }
+                if (isAd(edge)) {
+                    Logger.printDebug { "Hide sponsored or suggested feed edge" }
+                    param.result = false
+                }
             }
         }
     }
 
-    EdgeSwapRunFingerprint.hookMethod {
-        before { param ->
-            val runnable = param.thisObject
-            val edge = runnable.javaClass.declaredFields.mapNotNull {
-                it.isAccessible = true
-                it.get(runnable)
-            }.firstOrNull { edgeClass.isInstance(it) }
+    runCatching {
+        EdgeSwapRunFingerprint.hookMethod {
+            before { param ->
+                val runnable = param.thisObject ?: return@before
+                val edge = runnable.javaClass.declaredFields.mapNotNull {
+                    it.isAccessible = true
+                    runCatching { it.get(runnable) }.getOrNull()
+                }.firstOrNull { edgeClass?.isInstance(it) == true }
 
-            if (isAd(edge)) {
-                Logger.printDebug { "Block sponsored edge swap" }
-                param.result = null // Skip the run() execution
+                if (isAd(edge)) {
+                    Logger.printDebug { "Block sponsored edge swap" }
+                    param.result = null // Skip the run() execution
+                }
             }
         }
     }
 
-    TimelineStoryRenderFingerprint.hookMethod {
-        before { param ->
-            val component = param.thisObject ?: return@before
-            for (field in component.javaClass.declaredFields) {
-                field.isAccessible = true
-                val value = runCatching { field.get(component) }.getOrNull() ?: continue
-                if (isAd(value)) {
-                    Logger.printDebug { "Hide sponsored profile posts: Blocked ad on timeline" }
-                    param.result = null
-                    break
+    runCatching {
+        TimelineStoryRenderFingerprint.hookMethod {
+            before { param ->
+                val component = param.thisObject ?: return@before
+                for (field in component.javaClass.declaredFields) {
+                    field.isAccessible = true
+                    val value = runCatching { field.get(component) }.getOrNull() ?: continue
+                    if (isAd(value)) {
+                        Logger.printDebug { "Hide sponsored profile posts: Blocked ad on timeline" }
+                        param.result = null
+                        break
+                    }
                 }
             }
         }
     }
 }
-
