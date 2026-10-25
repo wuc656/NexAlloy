@@ -7,18 +7,20 @@ import io.github.nexalloy.patch
 
 internal object ReelWatchHistoryFingerprint : Fingerprint(
     returnType = "V",
-    strings = listOf("FbShortsSeenStateMutation", "video_ids")
+    strings = listOf("FbShortsSeenStateMutation")
 )
 
 val DontSendReelWatchHistory = patch(
     name = "Don't send reel watch history",
     description = "Stops sending Facebook the list of reels you've watched.",
 ) {
-    ReelWatchHistoryFingerprint.hookMethod(object : XC_MethodHook() {
-        override fun beforeHookedMethod(param: MethodHookParam) {
-            if (FacebookSettings.isEnabled(FacebookSettings.KEY_DONT_SEND_REEL_WATCH_HISTORY, false)) {
-                param.result = null
+    runCatching {
+        ReelWatchHistoryFingerprint.hookMethod(object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (FacebookSettings.isEnabled(FacebookSettings.KEY_DONT_SEND_REEL_WATCH_HISTORY, false)) {
+                    param.result = null
+                }
             }
-        }
-    })
+        })
+    }
 }
