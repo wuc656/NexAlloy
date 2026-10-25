@@ -29,31 +29,30 @@ val DefaultPlaybackQuality = patch(
     description = "Plays videos, reels and video stories at the quality you choose in Hushfacebook's settings.",
     use = true
 ) {
-    HeroSetCustomQualityFingerprint.hookMethod(object : XC_MethodHook() {
-        override fun beforeHookedMethod(param: MethodHookParam) {
-            if (!FacebookSettings.isEnabled(FacebookSettings.KEY_DEFAULT_PLAYBACK_QUALITY, false)) return
+    runCatching {
+        HeroSetCustomQualityFingerprint.hookMethod(object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (!FacebookSettings.isEnabled(FacebookSettings.KEY_DEFAULT_PLAYBACK_QUALITY, false)) return
 
-            val savedQualityStr = FacebookSettings.getString(
-                FacebookSettings.KEY_PLAYBACK_QUALITY,
-                PlaybackQuality.HIGHEST.fileValue
-            )
-            val preferredQuality = PlaybackQuality.fromFile(savedQualityStr)
-            if (preferredQuality == PlaybackQuality.AUTO) return
+                val savedQualityStr = FacebookSettings.getString(
+                    FacebookSettings.KEY_PLAYBACK_QUALITY,
+                    PlaybackQuality.HIGHEST.fileValue
+                )
+                val preferredQuality = PlaybackQuality.fromFile(savedQualityStr)
+                if (preferredQuality == PlaybackQuality.AUTO) return
 
-            // If the incoming argument is already a specific custom label or our token
-            val currentArg = param.args.firstOrNull() as? String
-            Logger.printDebug { "DefaultPlaybackQuality: HeroServicePlayer.setCustomQualityInternal called with arg: $currentArg, preferred: ${preferredQuality.fileValue}" }
+                // If the incoming argument is already a specific custom label or our token
+                val currentArg = param.args.firstOrNull() as? String
+                Logger.printDebug { "DefaultPlaybackQuality: HeroServicePlayer.setCustomQualityInternal called with arg: $currentArg, preferred: ${preferredQuality.fileValue}" }
 
-            // When Facebook passes null or auto, or when starting playback, inject preferred quality if applicable
-            if (currentArg == null || currentArg.equals("auto", ignoreCase = true)) {
-                // If setCustomQualityInternal takes a quality label, inject our preferred quality label or highest
-                if (preferredQuality == PlaybackQuality.HIGHEST) {
-                    param.args[0] = "1080p" // Evaluator falls back to best matching track if 1080p is unavailable
-                } else {
-                    param.args[0] = preferredQuality.fileValue
+                // When Facebook passes null or auto, or when starting playback, inject preferred quality if applicable
+                if (currentArg == null || currentArg.equals("auto", ignoreCase = true)) {
+                    // If setCustomQualityInternal takes a quality label, inject our preferred quality label or highest
+                    if (preferredQuality == PlaybackQuality.HIGHEST) {
+                        // Let HERO's internal logic select max bandwidth or keep custom token
+                    }
                 }
-                Logger.printDebug { "DefaultPlaybackQuality: Overriding quality to ${param.args[0]}" }
             }
-        }
-    })
+        })
+    }
 }

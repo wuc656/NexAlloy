@@ -19,11 +19,13 @@ val HoldReelFor2x = patch(
     description = "Holding a reel plays it at double speed until you let go.",
     use = true
 ) {
-    HeroSetPlaybackSpeedFingerprint.hookMethod(object : XC_MethodHook() {
-        override fun beforeHookedMethod(param: MethodHookParam) {
-            if (FacebookSettings.isEnabled(FacebookSettings.KEY_HOLD_REEL_FOR_2X, false)) {
-                Logger.printDebug { "HoldReelFor2x: HeroServicePlayer.setPlaybackSpeedInternal invoked" }
+    runCatching {
+        HeroSetPlaybackSpeedFingerprint.hookMethod(object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (FacebookSettings.isEnabled(FacebookSettings.KEY_HOLD_REEL_FOR_2X, false)) {
+                    Logger.printDebug { "HoldReelFor2x: HeroServicePlayer.setPlaybackSpeedInternal invoked" }
+                }
             }
-        }
-    })
+        })
+    }
 }

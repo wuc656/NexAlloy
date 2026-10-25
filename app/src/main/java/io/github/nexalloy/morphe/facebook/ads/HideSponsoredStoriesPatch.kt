@@ -21,19 +21,20 @@ val HideSponsoredStories = patch(
     )
 
     fingerprints.forEach { fp ->
-        fp.hookMethod {
-            before { param ->
-                if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
-                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_STORIES, true
-                    )) return@before
-                val method = param.method as java.lang.reflect.Method
-                val listParamIndex = method.parameterTypes.indexOfLast { it.name == "com.google.common.collect.ImmutableList" }
-                if (listParamIndex >= 0) {
-                    Logger.printDebug { "Hide sponsored stories: Bypassed ad bucket inserter" }
-                    param.result = param.args[listParamIndex]
+        runCatching {
+            fp.hookMethod {
+                before { param ->
+                    if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                            io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_STORIES, true
+                        )) return@before
+                    val method = param.method as java.lang.reflect.Method
+                    val listParamIndex = method.parameterTypes.indexOfLast { it.name == "com.google.common.collect.ImmutableList" }
+                    if (listParamIndex >= 0) {
+                        Logger.printDebug { "Hide sponsored stories: Bypassed ad bucket inserter" }
+                        param.result = param.args[listParamIndex]
+                    }
                 }
             }
         }
     }
 }
-

@@ -7,5 +7,7 @@ val HideInstagramAds = patch(
     name = "HushGram Hide ads",
     description = "Hides sponsored posts, reels and stories without leaving gaps (HushGram).",
 ) {
-    ::adInjectorFingerprint.hookMethod(XC_MethodReplacement.returnConstant(false))
+    runCatching {
+        ::adInjectorFingerprint.hookMethod(XC_MethodReplacement.returnConstant(false))
+    }
 }

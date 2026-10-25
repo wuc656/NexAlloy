@@ -28,9 +28,11 @@ val KeepPostDates = patch(
     description = "Keeps the date under the poster's name. Prevents the subtitle from swapping to rotating details.",
     use = false
 ) {
-    PostHeaderSubtitleCyclingFingerprint.hookMethod(object : XC_MethodHook() {
-        override fun beforeHookedMethod(param: MethodHookParam) {
-            if (!FacebookSettings.isEnabled(FacebookSettings.KEY_KEEP_POST_DATES, false)) return
-        }
-    })
+    runCatching {
+        PostHeaderSubtitleCyclingFingerprint.hookMethod(object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (!FacebookSettings.isEnabled(FacebookSettings.KEY_KEEP_POST_DATES, false)) return
+            }
+        })
+    }
 }

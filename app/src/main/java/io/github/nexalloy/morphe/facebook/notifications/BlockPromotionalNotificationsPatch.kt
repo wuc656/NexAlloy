@@ -14,51 +14,48 @@ val BlockPromotionalNotifications = patch(
     name = "Block promotional notifications",
     description = "Keeps promotional and noise notifications off your phone.",
 ) {
-    TrayManagerPostFingerprint.hookMethod {
-        before { param ->
-            if (param.args == null || param.args.size < 4) return@before
-            val builder = param.args[3] ?: return@before
-            
-            // The builder has a field of type SystemTrayNotification. Let's find it.
-            val builderClass = builder.javaClass
-            val notificationField = builderClass.declaredFields.firstOrNull { 
-                it.type.name == "com.facebook.notifications.push.model.SystemTrayNotification" 
-            } ?: return@before
-            
-            notificationField.isAccessible = true
-            val notification = notificationField.get(builder) ?: return@before
-            
-            val notificationClass = notification.javaClass
-            val typeField = notificationClass.declaredFields.firstOrNull { it.name == "mType" && it.type == String::class.java }
-                ?: return@before
+    runCatching {
+        TrayManagerPostFingerprint.hookMethod {
+            before { param ->
+                if (param.args == null || param.args.size < 4) return@before
+                val builder = param.args[3] ?: return@before
                 
-            typeField.isAccessible = true
-            val type = typeField.get(notification) as? String ?: return@before
-            
-            val colon = type.indexOf(':')
-            val head = if (colon >= 0) type.substring(0, colon) else type
-            val kind = head.uppercase()
-            
-            val blockedKinds = setOf(
-                "TOP_TRENDING_VIDEO",
-                "PERSONALIZED_REELS",
-                "ONTHISDAY",
-                "BIRTHDAY_REMINDER",
-                "GROUP_HIGHLIGHTS",
-                "GROUP_NF_HIGHLIGHTS",
-                "PAGE_HIGHLIGHTS",
-                "CREATOR_HIGHLIGHTS",
-                "PYMK_EMAIL",
-                "PLACE_FEED_NEARBY",
-                "NEAR_SAVED_PLACE",
-                "WEATHER_NOWCAST"
-            )
-            
-            if (kind in blockedKinds) {
-                if (io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
-                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_BLOCK_PROMO_NOTIFS, true
-                    )) {
-                    Logger.printDebug { "Block promotional notifications: Blocked $kind" }
+                // The builder has a field of type SystemTrayNotification. Let's find it.
+                val builderClass = builder.javaClass
+                val notificationField = builderClass.declaredFields.firstOrNull { 
+                    it.type.name == "com.facebook.notifications.push.model.SystemTrayNotification" 
+                } ?: return@before
+                
+                notificationField.isAccessible = true
+                val notification = notificationField.get(builder) ?: return@before
+                
+                val notificationClass = notification.javaClass
+                val typeField = notificationClass.declaredFields.firstOrNull { it.name == "mType" && it.type == String::class.java }
+                    ?: return@before
+                    
+                typeField.isAccessible = true
+                val type = typeField.get(notification) as? String ?: return@before
+                
+                val colon = type.indexOf(':')
+                val head = if (colon >= 0) type.substring(0, colon) else type
+                val kind = head.uppercase()
+                
+                val blockedKinds = setOf(
+                    "TOP_TRENDING_VIDEO",
+                    "PERSONALIZED_REELS",
+                    "ONTHISDAY",
+                    "BIRTHDAY_REMINDER",
+                    "GROUP_HIGHLIGHTS",
+                    "GROUP_NF_HIGHLIGHTS",
+                    "PAGE_HIGHLIGHTS",
+                    "CREATOR_HIGHLIGHTS",
+                    "REELS_CREATOR_DIGEST",
+                    "WATCH_TOPIC_NOTIF",
+                    "SUGGESTED_CONTENT"
+                )
+                
+                if (kind in blockedKinds) {
+                    Logger.printDebug { "Block promotional notifications: Dropped notification type=$type" }
                     param.result = null
                 }
             }
