@@ -42,13 +42,17 @@ val NavigationBarHook = patch(
 
     // Hook the current navigation bar enum value. Note, the 'You' tab does not have an enum value.
     InitializeButtonsFingerprint.hookMethod(scopedHook(::getNavigationEnumMethod.member) {
-        after { NavigationBar.setLastAppNavigationEnum(it.result as Enum<*>) }
+        after { (it.result as? Enum<*>)?.let { enumVal -> NavigationBar.setLastAppNavigationEnum(enumVal) } }
     })
 
     // Hook the creation of navigation tab views.
     if (!is_21_43_or_greater) {
         InitializeButtonsFingerprint.hookMethod(scopedHook(::pivotBarButtonsCreateDrawableViewFingerprint.member) {
-            after { NavigationBar.navigationTabLoaded(it.result as View) }
+            after {
+                (it.result as? View)?.let { view ->
+                    NavigationBar.navigationImageResourceTabLoaded(view)
+                }
+            }
         })
     }
 
@@ -60,7 +64,11 @@ val NavigationBarHook = patch(
         scopedHook(
             PivotBarButtonsCreateResourceStyledViewFingerprint.member
         ) {
-            after { NavigationBar.navigationImageResourceTabLoaded(it.result as View) }
+            after {
+                (it.result as? View)?.let { view ->
+                    NavigationBar.navigationImageResourceTabLoaded(view)
+                }
+            }
         })
 
     InitializeBottomBarContainerFingerprint.hookMethod(scopedHook(
