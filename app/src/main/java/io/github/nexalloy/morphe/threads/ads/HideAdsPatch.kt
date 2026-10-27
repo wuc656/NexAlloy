@@ -25,13 +25,11 @@ val HideThreadsAds = patch(
         resolved = true
         try {
             mediaClass = classLoader.loadClass("com.instagram.feed.media.Media")
-            val injectedMethod = InjectedAdCheckFingerprint.method
-            val targetDeclaringClass = injectedMethod.declaringClass
+            val injectedMethod = runCatching { InjectedAdCheckFingerprint.method }.getOrNull()
 
             // Media's own ad check directly returns the injected check
             for (m in mediaClass!!.declaredMethods) {
                 if (m.returnType == java.lang.Boolean.TYPE && m.parameterTypes.isEmpty() && !Modifier.isStatic(m.modifiers)) {
-                    // Let's check if method name matches DKT or any candidate that invokes injectedMethod
                     if (m.name == "DKT") {
                         m.isAccessible = true
                         cachedIsAdMethod = m
@@ -76,33 +74,39 @@ val HideThreadsAds = patch(
         return runCatching { cachedIsAdMethod!!.invoke(media) as? Boolean ?: false }.getOrDefault(false)
     }
 
-    FeedPageMergeFingerprint.hookMethod(object : XC_MethodHook() {
-        @Suppress("UNCHECKED_CAST")
-        override fun beforeHookedMethod(param: MethodHookParam) {
-            initMethods()
-            val list = param.args.getOrNull(4) as? List<Any?> ?: return
-            if (list.isEmpty()) return
+    runCatching {
+        ::feedPageMergeMethod.hookMethod(object : XC_MethodHook() {
+            @Suppress("UNCHECKED_CAST")
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                initMethods()
+                val listIndex = param.args.indexOfFirst { it is List<*> }
+                if (listIndex == -1) return
+                val list = param.args[listIndex] as? List<Any?> ?: return
+                if (list.isEmpty()) return
 
-            var hasAd = false
-            for (item in list) {
-                val media = getMediaFromItem(item)
-                if (media != null && isAd(media)) {
-                    hasAd = true
-                    break
+                var hasAd = false
+                for (item in list) {
+                    val media = getMediaFromItem(item)
+                    if (media != null && isAd(media)) {
+                        hasAd = true
+                        break
+                    }
                 }
-            }
 
-            if (!hasAd) return
+                if (!hasAd) return
 
-            val beforeSize = list.size
-            val filtered = list.filter { item ->
-                val media = getMediaFromItem(item)
-                !(media != null && isAd(media))
+                val beforeSize = list.size
+                val filtered = list.filter { item ->
+                    val media = getMediaFromItem(item)
+                    !(media != null && isAd(media))
+                }
+                param.args[listIndex] = filtered
+                Logger.printDebug { "HushThreads: Filtered ${beforeSize - filtered.size} ad posts from feed page" }
             }
-            param.args[4] = filtered
-            Logger.printDebug { "HushThreads: Filtered ${beforeSize - filtered.size} ad posts from feed page" }
-        }
-    })
+        })
+    }.onFailure {
+        Logger.printDebug { "HushThreads: Failed to hook feedPageMergeMethod: ${it.message}" }
+    }
 
     runCatching {
         ::permalinkAdResultConstructor.hookMethod(object : XC_MethodHook() {

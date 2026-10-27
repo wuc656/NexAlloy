@@ -8,9 +8,9 @@ import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.literal
-import io.github.nexalloy.morphe.methodCall
 
 internal const val FEED_CACHE = "Lcom/instagram/barcelona/feed/data/cache/BarcelonaFeedCache;"
+internal const val FEED_CACHE_CLASS = "com.instagram.barcelona.feed.data.cache.BarcelonaFeedCache"
 internal const val MEDIA = "Lcom/instagram/feed/media/Media;"
 internal val INJECTED_FIELD = "injected".hashCode()
 internal const val PERMALINK_AD_FETCHER = "Lcom/instagram/barcelona/sponsored/permalink/ThreadsPermalinkAdFetcher;"
@@ -19,22 +19,28 @@ internal const val PERMALINK_ADS_PATH = "text_feed/threads_permalink_ads/"
 /**
  * BarcelonaFeedCache.addAndSaveItemsFromFeedFetchSuccess:
  * Merges a fetched feed page into the feed cache.
- * The 5th parameter (index 4) is the List of items.
  */
-internal object FeedPageMergeFingerprint : Fingerprint(
-    definingClass = FEED_CACHE,
-    returnType = "Ljava/lang/Object;",
-    parameters = listOf(
-        "L", "Ljava/lang/Integer;", "Ljava/lang/String;", "Ljava/lang/String;", "Ljava/util/List;",
-        "L", "Lkotlin/jvm/functions/Function3;", "Z"
-    ),
-    filters = listOf(
-        methodCall(
-            definingClass = "Lcom/instagram/barcelona/feed/data/cache/BarcelonaFeedCache\$addAndSaveItemsFromFeedFetchSuccess\$2\$1;",
-            name = "<init>"
-        )
-    )
-)
+val feedPageMergeMethod = findMethodDirect {
+    findMethod {
+        matcher {
+            declaredClass(FEED_CACHE_CLASS)
+            name = "addAndSaveItemsFromFeedFetchSuccess"
+        }
+    }.firstOrNull() ?: findMethod {
+        matcher {
+            declaredClass(FEED_CACHE_CLASS)
+        }
+    }.firstOrNull { method ->
+        method.paramTypeNames.any { it.contains("List") } &&
+            method.instructions.any { it.methodRef?.declaredClassName?.contains("addAndSaveItemsFromFeedFetchSuccess") == true }
+    } ?: findMethod {
+        matcher {
+            declaredClass(FEED_CACHE_CLASS)
+        }
+    }.first { method ->
+        method.paramTypeNames.any { it.contains("List") }
+    }
+}
 
 /**
  * InjectedAdCheckFingerprint:
