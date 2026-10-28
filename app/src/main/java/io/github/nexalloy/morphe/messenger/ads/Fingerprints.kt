@@ -19,3 +19,20 @@ internal object InboxAdsProcessorFingerprint : Fingerprint(
         "new_friend_bump_threads"
     )
 )
+
+/**
+ * Click-to-message ad entry event logger ("ad_id", "page_id").
+ */
+internal object AdEntryEventFingerprint : Fingerprint(
+    accessFlags = listOf(io.github.nexalloy.morphe.AccessFlags.STATIC),
+    returnType = "V",
+    parameters = listOf(
+        "L",
+        "Lcom/facebook/auth/usersession/FbUserSession;",
+        "Ljava/lang/String;",
+        "Ljava/lang/String;",
+        "Ljava/lang/String;",
+        "Ljava/lang/String;"
+    ),
+    strings = listOf("ad_id", "page_id")
+)

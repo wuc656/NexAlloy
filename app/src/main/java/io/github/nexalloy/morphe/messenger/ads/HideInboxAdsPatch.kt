@@ -54,4 +54,9 @@ val HideInboxAds = patch(
         }
     })
     }
+
+    // 2. Block click-to-message ad entry event ("ad_id", "page_id")
+    runCatching {
+        AdEntryEventFingerprint.hookMethod(de.robv.android.xposed.XC_MethodReplacement.DO_NOTHING)
+    }
 }

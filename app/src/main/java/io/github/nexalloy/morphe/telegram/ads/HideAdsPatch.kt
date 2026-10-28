@@ -11,18 +11,30 @@ val HideTelegramAds = patch(
     use = true
 ) {
     // 1. Channel sponsored messages
-    GetSponsoredMessagesFingerprint.hookMethod(XC_MethodReplacement.returnConstant(null))
+    runCatching {
+        GetSponsoredMessagesFingerprint.hookMethod(XC_MethodReplacement.returnConstant(null))
+    }
 
     // 2. Video player ads
-    VideoAdsLoadFingerprint.hookMethod(XC_MethodReplacement.DO_NOTHING)
-
-    // 3. Search sponsored peers (optional: hook if present in build)
     runCatching {
-        SearchSponsoredPeersFingerprint.hookMethod(object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                Logger.printDebug { "Telegram: Blocked search sponsored peers request" }
-                param.result = null
+        VideoAdsLoadFingerprint.hookMethod(XC_MethodReplacement.DO_NOTHING)
+    }
+
+    // 3. Search sponsored peers: block ConnectionsManager.sendRequest when payload is TL_contacts_getSponsoredPeers
+    runCatching {
+        val connectionsManager = classLoader.loadClass("org.telegram.tgnet.ConnectionsManager")
+        for (method in connectionsManager.declaredMethods) {
+            if (method.name == "sendRequest" && method.parameterTypes.isNotEmpty()) {
+                de.robv.android.xposed.XposedBridge.hookMethod(method, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val req = param.args.firstOrNull() ?: return
+                        if (req.javaClass.name == "org.telegram.tgnet.TLRPC\$TL_contacts_getSponsoredPeers") {
+                            Logger.printDebug { "Telegram: Blocked TL_contacts_getSponsoredPeers sendRequest" }
+                            param.result = 0
+                        }
+                    }
+                })
             }
-        })
+        }
     }
 }

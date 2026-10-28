@@ -59,6 +59,24 @@ internal object InjectedAdCheckFingerprint : Fingerprint(
 )
 
 /**
+ * Media's own ad check method: the unique non-static boolean getter in Media
+ * that invokes InjectedAdCheckFingerprint.
+ */
+val mediaIsAdMethod = findMethodDirect {
+    val injected = InjectedAdCheckFingerprint.run()
+    findMethod {
+        matcher {
+            declaredClass("com.instagram.feed.media.Media")
+            returnType = "boolean"
+            paramCount = 0
+        }
+    }.first { m ->
+        !java.lang.reflect.Modifier.isStatic(m.modifiers) &&
+            m.invokes.any { it.declaredClassName == injected.declaredClassName && it.name == injected.name }
+    }
+}
+
+/**
  * PermalinkAdFetchFingerprint:
  * Fetches ads for an opened post's replies.
  */

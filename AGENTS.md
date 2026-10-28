@@ -18,19 +18,19 @@
   - Note: `Hide post prompts` was intentionally and permanently removed. Do not restore.
 - **Threads** ([SysAdminDoc/HushThreads](https://github.com/SysAdminDoc/HushThreads))
   - Hook `adInjectorFingerprint` to return `false`.
-  - Purge injected sponsored threads from feed cache arrays and suppress permalink ads in opened post replies.
+  - Purge injected sponsored threads (`Media.isAd` via `InjectedAdCheckFingerprint` and `AD_UNIT_TYPES` enum filter) from `BarcelonaFeedCache` page merges, and suppress permalink ads in opened post replies.
 - **Instagram** ([SysAdminDoc/HushGram](https://github.com/SysAdminDoc/HushGram))
-  - Hook `adInjectorFingerprint` to return `false` (zero-gap ad suppression across feed, stories, and reels).
+  - Hook `adInjectorFingerprint` to return `false` and filter server-embedded `"injected"` sponsored posts & ad pivots (`INTENT_AWARE_AD_PIVOT`, `STAND_ALONE_MULTI_AD_PIVOT`) in `feedItemParserFingerprint`.
 - **Telegram** ([SysAdminDoc/HushTelegram](https://github.com/SysAdminDoc/HushTelegram))
   - Channel Ads: Hook `GetSponsoredMessagesFingerprint` to return `null`.
-  - Video Player Ads: Hook `VideoAdsLoadFingerprint` with `XC_MethodReplacement.DO_NOTHING`.
-  - Search Ads: Intercept `SearchSponsoredPeersFingerprint` to cancel sponsored peer queries.
+  - Video Player Ads: Hook `VideoAdsLoadFingerprint` (`newInstance(GET_SPONSORED_MESSAGES)`) with `XC_MethodReplacement.DO_NOTHING`.
+  - Search Ads: Intercept `ConnectionsManager.sendRequest` to drop `TL_contacts_getSponsoredPeers` payloads without breaking normal global search.
 - **Twitch** ([hoomans-morphe-patches](https://github.com/arandomhooman/hoomans-morphe-patches) & [De-Vanced](https://github.com/RookieEnough/De-Vanced))
   - Live Stream Ads: Intercept `LiveManifestUrlBuilderFingerprint` (`usher.ttvnw.net`) to route streams through ad-free proxy `https://lb-as.cdn-perfprod.com/live/<channel>`.
   - Display Ads: Intercept `DisplayAdResponseParserFingerprint` and return `NoAd` singleton.
   - Video & Audio Ads: Intercept `EligibilityCheckCompleted` to force `shouldRequestAd = false`; silence `sendAudioAdsContext` presenter actions.
 - **Messenger** ([SysAdminDoc/HushMessenger](https://github.com/SysAdminDoc/HushMessenger))
-  - Intercept `ItemListProcessorInterfaceSpec.processItems` returning `ImmutableList` to filter out `InboxAdsItem`.
+  - Intercept `ItemListProcessorInterfaceSpec.processItems` returning `ImmutableList` to filter out `InboxAdsItem`, and silence `AdEntryEventFingerprint` (`ad_id`, `page_id`).
 
 ## Architecture & File Structure
 - `app/src/main/java/io/github/nexalloy/`:

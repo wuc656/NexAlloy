@@ -22,9 +22,9 @@ internal object GetSponsoredMessagesFingerprint : Fingerprint(
  */
 internal object VideoAdsLoadFingerprint : Fingerprint(
     definingClass = "Lorg/telegram/messenger/video/VideoAds;",
-    name = "load",
     returnType = "V",
-    parameters = listOf()
+    parameters = listOf(),
+    filters = listOf(newInstance(GET_SPONSORED_MESSAGES))
 )
 
 /**
@@ -32,5 +32,6 @@ internal object VideoAdsLoadFingerprint : Fingerprint(
  */
 internal object SearchSponsoredPeersFingerprint : Fingerprint(
     returnType = "V",
+    parameters = listOf("I", "Ljava/lang/String;"),
     filters = listOf(newInstance(GET_SPONSORED_PEERS))
 )
