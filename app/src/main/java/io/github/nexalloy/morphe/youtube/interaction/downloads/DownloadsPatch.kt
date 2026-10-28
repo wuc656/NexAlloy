@@ -7,8 +7,12 @@ import app.morphe.extension.shared.spoof.requests.StreamingDataRequest
 import app.morphe.extension.youtube.patches.DownloadsPatch
 import app.morphe.extension.youtube.patches.InAppDownloadsPatch
 import app.morphe.extension.youtube.videoplayer.ExternalDownloadButton
+import app.morphe.extension.youtube.videoplayer.ShortsDownloadButton
 import io.github.nexalloy.R
 import io.github.nexalloy.callMethod
+import io.github.nexalloy.hookMethod
+import io.github.nexalloy.morphe.setExtensionIsPatchIncluded
+import io.github.nexalloy.morphe.shared.misc.proto.hookElement
 import io.github.nexalloy.morphe.shared.misc.request.buildRequestPatch
 import io.github.nexalloy.morphe.shared.misc.request.hookBuildRequest
 import io.github.nexalloy.morphe.shared.misc.settings.preference.ListPreference
@@ -17,6 +21,9 @@ import io.github.nexalloy.morphe.shared.misc.settings.preference.SwitchPreferenc
 import io.github.nexalloy.morphe.shared.misc.settings.preference.TextPreference
 import io.github.nexalloy.morphe.shared.misc.spoof.plainStreamRequestsPatch
 import io.github.nexalloy.morphe.youtube.misc.playercontrols.ControlInitializer
+import io.github.nexalloy.morphe.youtube.layout.flyout.flyoutPatch
+import io.github.nexalloy.morphe.youtube.misc.auth.authHookPatch
+import io.github.nexalloy.morphe.youtube.misc.proto.elementProtoParserHookPatch
 import io.github.nexalloy.morphe.youtube.misc.playercontrols.LegacyPlayerControls
 import io.github.nexalloy.morphe.youtube.misc.playercontrols.addTopControl
 import io.github.nexalloy.morphe.youtube.misc.playercontrols.initializeTopControl
@@ -36,6 +43,9 @@ val Downloads = patch(
         VideoInformationPatch,
         buildRequestPatch,
         plainStreamRequestsPatch,
+        authHookPatch,
+        elementProtoParserHookPatch,
+        flyoutPatch,
     )
 
     PreferenceScreen.PLAYER.addPreferences(
@@ -49,6 +59,9 @@ val Downloads = patch(
                     "morphe_external_downloader_name",
                     tag = ExternalDownloaderPreference::class.java
                 ),
+                SwitchPreference("morphe_external_downloader_quick_menu", summary = true),
+                SwitchPreference("morphe_external_downloader_mark_watched", summary = true),
+                SwitchPreference("morphe_shorts_download_flyout_button", summary = true),
             ),
         ),
     )
@@ -71,6 +84,20 @@ val Downloads = patch(
             if (DownloadsPatch.inAppDownloadButtonOnClick(it.args[2] as String)) it.result = null
         }
     }
+
+    setExtensionIsPatchIncluded(ShortsDownloadButton::class.java)
+
+    // Open the external downloader with the playlist link, instead of saving the playlist.
+    OfflinePlaylistEndpointFingerprint.hookMethod {
+        before {
+            if (DownloadsPatch.offlinePlaylistEndpointOnClick(it.args[2] as String, it.args[3] as Enum<*>)) {
+                it.result = null
+            }
+        }
+    }
+
+    // Add the Download button to the playlist page headers, which only Premium accounts get.
+    hookElement(InAppDownloadsPatch::addPlaylistDownloadButton)
 
     // region In-app downloads.
 
@@ -108,6 +135,18 @@ val Downloads = patch(
         before {
             InAppDownloadsPatch.replaceOfflineUpsell(commandField.get(it.thisObject), it.args[0])?.let { bytes ->
                 it.args[0] = parse(upsellDefault, bytes)
+            }
+        }
+    }
+
+    // Keep saved videos playable, if the server disables them when they are refreshed.
+    val offlineStateDefault = ::offlineStateDefaultInstance.field.get(null)!!
+    ::updateOfflineVideoPolicyMethods.dexMethodList.forEach { method ->
+        method.hookMethod {
+            before {
+                InAppDownloadsPatch.replaceDisabledOfflineState(it.args[2])?.let { bytes ->
+                    it.args[2] = parse(offlineStateDefault, bytes)
+                }
             }
         }
     }

@@ -3,18 +3,22 @@ package io.github.nexalloy.morphe.youtube.video.quality
 import `j$`.util.Optional
 import app.morphe.extension.youtube.patches.playback.quality.RememberVideoQualityPatch
 import io.github.nexalloy.callMethod
+import io.github.nexalloy.hookMethod
 import io.github.nexalloy.morphe.shared.misc.settings.preference.ListPreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.SwitchPreference
 import io.github.nexalloy.morphe.youtube.insertLiteralOverride
 import io.github.nexalloy.morphe.youtube.interaction.downloads.GeneratedRegistryFingerprint
 import io.github.nexalloy.morphe.youtube.interaction.downloads.ProtobufClassParseByteArrayWithRegistryFingerprint
 import io.github.nexalloy.morphe.youtube.misc.playertype.PlayerTypeHook
+import io.github.nexalloy.morphe.youtube.misc.playservice.VersionCheck
+import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_17_or_greater
 import io.github.nexalloy.morphe.youtube.shared.VideoQualityChangedFingerprint
 import io.github.nexalloy.morphe.youtube.shared.VideoQualityReceiver
 import io.github.nexalloy.morphe.youtube.shared.hookVideoIntent
 import io.github.nexalloy.morphe.youtube.shared.openVideoIntentPatch
 import io.github.nexalloy.morphe.youtube.video.information.VideoInformationPatch
 import io.github.nexalloy.morphe.youtube.video.information.VideoQualityProxy
+import io.github.nexalloy.morphe.youtube.video.information.setQualityMenuIndexMethod
 import io.github.nexalloy.patch
 import io.github.nexalloy.scopedHook
 
@@ -23,6 +27,7 @@ val RememberVideoQuality = patch {
         VideoInformationPatch,
         PlayerTypeHook,
         openVideoIntentPatch,
+        VersionCheck,
     )
 
     settingsMenuVideoQualityGroup.addAll(
@@ -135,6 +140,23 @@ val RememberVideoQuality = patch {
         before { param ->
             RememberVideoQualityPatch.userChangedShortsQuality(param.args[2] as Int)
         }
+        after { RememberVideoQualityPatch.clearShortsMenuSelectedQuality() }
+    }
+
+    // The quality selected is set instead of its resolution, as with regular videos.
+    val setQuality = ::setQualityMenuIndexMethod.method
+    val setResolution = ::setVideoQualityResolutionMethod.method
+    ::videoQualityItemSetResolutionMethods.dexMethodList.forEach { method ->
+        method.hookMethod(scopedHook(setResolution) {
+            before {
+                val menu = it.thisObject
+                if (RememberVideoQualityPatch.setShortsMenuSelectedQuality { quality ->
+                        setQuality.invoke(menu, (quality as VideoQualityProxy).quality)
+                    }) {
+                    it.result = null
+                }
+            }
+        })
     }
 
     // Inject a call to remember the user selected quality for regular videos.
@@ -148,5 +170,17 @@ val RememberVideoQuality = patch {
     // If this flag is enabled, Shorts restart whenever the quality changes.
     // The restart uses the initial quality of the Short, so the quality selected by the user is lost.
     insertLiteralOverride(45387052)
-    insertLiteralOverride(45399743)
+    // Keep formats only for the Short for which the user selected the quality.
+    insertLiteralOverride(45399743L, RememberVideoQualityPatch::useSelectedQualityFormats)
+    insertLiteralOverride(45400072L, true)
+
+    // Clear the buffered video when the quality selected by the user is set.
+    if (is_21_17_or_greater) {
+        PlaybackControllerSetVideoFormatsFingerprint.hookMethod {
+            before { it.args[0] = RememberVideoQualityPatch.clearVideoBufferOnQualityChange(it.args[0] as Boolean) }
+        }
+        AsyncMediaFetchControllerSetVideoFormatsFingerprint.hookMethod {
+            before { it.args[1] = RememberVideoQualityPatch.clearVideoBufferOnQualityChange(it.args[1] as Boolean) }
+        }
+    }
 }

@@ -20,6 +20,14 @@ import io.github.nexalloy.morphe.opcode
 import io.github.nexalloy.morphe.resourceLiteral
 import io.github.nexalloy.morphe.string
 import io.github.nexalloy.morphe.youtube.layout.hide.general.ContextualMenuItemBuilderFingerprint
+import io.github.nexalloy.morphe.youtube.shared.YOUTUBE_MAIN_ACTIVITY_CLASS_TYPE
+
+internal object LocalQueueOnUserLeaveHintFingerprint : Fingerprint(
+    definingClass = YOUTUBE_MAIN_ACTIVITY_CLASS_TYPE,
+    name = "onUserLeaveHint",
+    returnType = "V",
+    parameters = emptyList()
+)
 
 val ProtocolBufferField = findFieldDirect {
     InteractiveStickerRendererGetEditViewFingerprint.instructionMatches.last().instruction.fieldRef!!

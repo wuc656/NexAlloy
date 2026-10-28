@@ -4,7 +4,6 @@ import app.morphe.extension.youtube.patches.playback.speed.RememberPlaybackSpeed
 import app.morphe.extension.youtube.settings.preference.CustomVideoSpeedListPreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.ListPreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.SwitchPreference
-import io.github.nexalloy.morphe.youtube.misc.settings.PreferenceScreen
 import io.github.nexalloy.morphe.youtube.shared.InitializePlaybackSpeedValuesFingerprint
 import io.github.nexalloy.morphe.youtube.video.information.PlaybackSpeedMenu
 import io.github.nexalloy.morphe.youtube.video.information.VideoInformationPatch
@@ -12,6 +11,7 @@ import io.github.nexalloy.morphe.youtube.video.information.onCreateHook
 import io.github.nexalloy.morphe.youtube.video.information.userSelectedPlaybackSpeedHook
 import io.github.nexalloy.morphe.youtube.video.speed.custom.CustomPlaybackSpeed
 import io.github.nexalloy.morphe.youtube.video.speed.settingsMenuVideoSpeedGroup
+import io.github.nexalloy.morphe.youtube.video.speed.settingsMenuShortsSpeedGroup
 import io.github.nexalloy.morphe.youtube.video.videoid.VideoId
 import io.github.nexalloy.morphe.youtube.video.videoid.hookPlayerResponseVideoId
 import io.github.nexalloy.patch
@@ -45,12 +45,17 @@ val RememberPlaybackSpeed = patch {
         )
     )
 
-    PreferenceScreen.SHORTS.addPreferences(
-        ListPreference(
-            key = "morphe_shorts_playback_speed_default",
-            entriesKey = null,
-            entryValuesKey = null,
-            tag = CustomVideoSpeedListPreference::class.java
+    settingsMenuShortsSpeedGroup.addAll(
+        listOf(
+            ListPreference(
+                key = "morphe_shorts_playback_speed_default",
+                entriesKey = null,
+                entryValuesKey = null,
+                tag = CustomVideoSpeedListPreference::class.java
+            ),
+            SwitchPreference("morphe_shorts_remember_playback_speed", summary = true)
+            // TODO: Port ShortsPlaybackSpeedFlyoutPatch before exposing the new flyout entry.
+            // SwitchPreference("morphe_shorts_playback_speed_flyout_button", summary = true)
         )
     )
 

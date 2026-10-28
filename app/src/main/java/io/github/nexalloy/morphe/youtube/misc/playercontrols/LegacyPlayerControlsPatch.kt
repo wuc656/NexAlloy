@@ -25,6 +25,7 @@ import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_31_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_04_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_05_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_08_or_greater
+import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_11_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_29_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_30_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_38_or_greater
@@ -194,7 +195,10 @@ val LegacyPlayerControls = patch(
 
     // Override flags that interfere with old player icons override.
     insertLiteralOverride(45771730, LegacyPlayerControlsPatch::allowModernPlayerLayoutFlags)
-    insertLiteralOverride(45763727, LegacyPlayerControlsPatch::allowModernPlayerLayoutFlags)
+    // Watch feed resize A/B test: every scroll event of the watch next feed
+    // resizes the player and relayouts the watch page, and scrolling lags.
+    // It also interferes with the old player icons, so always turn it off.
+    if (is_21_11_or_greater) insertLiteralOverride(45763727L, false)
     fun overrideExploderLayout(id: Long) = insertLiteralOverride(
         id, LegacyPlayerControlsPatch::usePlayerBottomControlsExploderLayout
     )

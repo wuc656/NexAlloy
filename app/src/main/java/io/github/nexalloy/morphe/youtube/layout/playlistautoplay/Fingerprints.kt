@@ -10,10 +10,12 @@ package io.github.nexalloy.morphe.youtube.layout.playlistautoplay
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.Opcode
+import io.github.nexalloy.morphe.InstructionLocation.MatchAfterWithin
 import io.github.nexalloy.morphe.findFieldDirect
 import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.findMethodListDirect
 import io.github.nexalloy.morphe.opcode
+import io.github.nexalloy.morphe.methodCall
 import io.github.nexalloy.morphe.string
 import java.lang.reflect.Modifier
 
@@ -46,11 +48,25 @@ val navigationIntentField = findFieldDirect {
 
 val navigationIntentMethods = findMethodListDirect {
     val wrapperType = navigationIntentWrapperConstructor().declaredClass!!.descriptor
-    Fingerprint(returnType = "V", parameters = listOf(wrapperType)).matchAll().map { it.method }
-        .filter { method ->
-            !Modifier.isAbstract(method.modifiers) && method.declaredClass!!.methods.any { sibling ->
-                !Modifier.isAbstract(sibling.modifiers) && sibling.returnTypeName == "int" &&
-                        sibling.paramTypes.singleOrNull()?.descriptor == wrapperType
-            }
-        }.also { require(it.isNotEmpty()) }
+    Fingerprint(
+        accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+        returnType = "V",
+        parameters = listOf(wrapperType)
+    ).matchAll().map { it.method }
+        .filterNot { Modifier.isAbstract(it.modifiers) }
+        .also { require(it.isNotEmpty()) }
+}
+
+val navigationPlayerButtonsMethod = findMethodDirect {
+    val wrapperType = navigationIntentWrapperConstructor().declaredClass!!.descriptor
+    Fingerprint(
+        accessFlags = listOf(AccessFlags.PRIVATE, AccessFlags.FINAL),
+        returnType = "V",
+        parameters = listOf(wrapperType, "Ljava/lang/Runnable;"),
+        filters = listOf(
+            methodCall(parameters = listOf(wrapperType), returnType = "Z"),
+            methodCall(smali = "Ljava/lang/Runnable;->run()V", location = MatchAfterWithin(3)),
+            methodCall(parameters = listOf(wrapperType), returnType = "V", location = MatchAfterWithin(3))
+        )
+    ).match().method
 }

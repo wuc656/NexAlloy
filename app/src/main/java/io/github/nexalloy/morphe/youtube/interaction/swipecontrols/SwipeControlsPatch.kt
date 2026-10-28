@@ -1,11 +1,18 @@
 package io.github.nexalloy.morphe.youtube.interaction.swipecontrols
 
+import android.app.Activity
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import app.morphe.extension.shared.settings.preference.ColorPickerWithOpacitySliderPreference
 import app.morphe.extension.shared.settings.preference.SeekBarPreference
 import app.morphe.extension.youtube.settings.preference.SwipeVolumeStepsPreference
 import app.morphe.extension.youtube.settings.preference.SwipeZonePreference
 import app.morphe.extension.youtube.swipecontrols.SwipeControlsHostActivity
+import de.robv.android.xposed.XposedHelpers
+import io.github.nexalloy.PatchExecutor
+import io.github.nexalloy.hookMethod
 import io.github.nexalloy.morphe.shared.misc.settings.preference.InputType
 import io.github.nexalloy.morphe.shared.misc.settings.preference.ListPreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.NonInteractivePreference
@@ -122,7 +129,7 @@ val SwipeControls = patch(
         TextPreference("morphe_swipe_threshold", inputType = InputType.NUMBER),
     )
 
-    SwipeControlsHostActivity.hookActivity(::mainActivityClass.clazz)
+    hookSwipeControlsActivity(::mainActivityClass.clazz)
 
     if (!is_20_34_or_greater) {
         insertLiteralOverride(45631116L, SwipeControlsHostActivity::allowSwipeChangeVideo)
@@ -133,6 +140,47 @@ val SwipeControls = patch(
         before {
             val overlayName = overlayNameField.get(it.thisObject) as String?
             SwipeControlsHostActivity.setPlayerOverlay(it.thisObject as View, overlayName)
+        }
+    }
+}
+
+private fun PatchExecutor.hookSwipeControlsActivity(activityClass: Class<*>) {
+    val downstream = getInvoker(Activity::class.java.getDeclaredMethod("dispatchTouchEvent", MotionEvent::class.java))
+    activityClass.declaredConstructors.forEach { constructor ->
+        constructor.hookMethod {
+            after {
+                val activity = it.thisObject as Activity
+                if (XposedHelpers.getAdditionalInstanceField(activity, "swipeControlsHost") == null) {
+                    val host = SwipeControlsHostActivity(activity) { event ->
+                        downstream.invokeSpecial(activity, event) as Boolean
+                    }
+                    XposedHelpers.setAdditionalInstanceField(activity, "swipeControlsHost", host)
+                }
+            }
+        }
+    }
+    fun host(activity: Any) =
+        XposedHelpers.getAdditionalInstanceField(activity, "swipeControlsHost") as SwipeControlsHostActivity
+
+    activityClass.getDeclaredMethod("onCreate", Bundle::class.java).hookMethod {
+        after { host(it.thisObject).onCreate(it.args[0] as Bundle?) }
+    }
+    activityClass.getDeclaredMethod("onStart").hookMethod {
+        after { host(it.thisObject).onStart() }
+    }
+    activityClass.getDeclaredMethod("onDestroy").hookMethod {
+        after { host(it.thisObject).onDestroy() }
+    }
+    activityClass.getDeclaredMethod("dispatchTouchEvent", MotionEvent::class.java).hookMethod {
+        before {
+            val event = it.args[0] as MotionEvent?
+            if (event != null && host(it.thisObject).dispatchTouchEvent(event)) it.result = true
+        }
+    }
+    activityClass.getDeclaredMethod("dispatchKeyEvent", KeyEvent::class.java).hookMethod {
+        before {
+            val event = it.args[0] as KeyEvent?
+            if (event != null && host(it.thisObject).dispatchKeyEvent(event)) it.result = true
         }
     }
 }

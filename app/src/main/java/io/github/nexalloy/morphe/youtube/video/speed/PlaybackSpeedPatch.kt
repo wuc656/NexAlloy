@@ -6,6 +6,7 @@ import io.github.nexalloy.morphe.setExtensionIsPatchIncluded
 import io.github.nexalloy.morphe.shared.misc.settings.preference.BasePreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceCategory
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceScreenPreference.Sorting
+import io.github.nexalloy.morphe.shared.misc.settings.preference.noTitleUnsortedPreferenceCategory
 import io.github.nexalloy.morphe.youtube.misc.settings.PreferenceScreen
 import io.github.nexalloy.morphe.youtube.video.speed.button.PlaybackSpeedButton
 import io.github.nexalloy.morphe.youtube.video.speed.custom.CustomPlaybackSpeed
@@ -16,6 +17,7 @@ import io.github.nexalloy.patch
  * Speed menu settings.  Used to organize all speed related settings together.
  */
 internal val settingsMenuVideoSpeedGroup = mutableSetOf<BasePreference>()
+internal val settingsMenuShortsSpeedGroup = mutableSetOf<BasePreference>()
 
 @Suppress("unused")
 val PlaybackSpeed = patch(
@@ -39,6 +41,10 @@ val PlaybackSpeed = patch(
             tag = NoTitlePreferenceCategory::class.java,
             preferences = settingsMenuVideoSpeedGroup
         )
+    )
+
+    PreferenceScreen.SHORTS.addPreferences(
+        noTitleUnsortedPreferenceCategory(settingsMenuShortsSpeedGroup)
     )
 }
 

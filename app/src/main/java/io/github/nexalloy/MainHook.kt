@@ -8,6 +8,7 @@ import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
+import io.github.nexalloy.common.CHECK_BETA_UPDATES
 import io.github.nexalloy.common.UpdateChecker
 import io.github.nexalloy.morphe.ResourceFinder
 import io.github.nexalloy.morphe.resourceMappings
@@ -77,7 +78,7 @@ fun inContext(lpparam: PackageReadyParam, f: (Application) -> Unit) {
             if (modulePath.startsWith("/data/app/")) {
                 val prefs = xposed.getRemotePreferences("prefs")
                 if (!prefs.getBoolean("disable_auto_check_update", false)) {
-                    UpdateChecker().hookNewActivity()
+                    UpdateChecker { prefs.getBoolean(CHECK_BETA_UPDATES, false) }.hookNewActivity()
                 }
             }
         }

@@ -333,19 +333,24 @@ val VideoInformationPatch = patch(
     // only used by the minimal miniplayer, which is only rebuilt for those.
     val videoTitle = if (is_21_29_or_greater) ::playerResponseVideoTitleMethod.method else null
     val isLive = ::playerResponseIsLiveMethod.method
+    fun updateChannelInformation(playerResponse: Any) {
+        VideoInformation.setChannelId(channelId.invoke(playerResponse) as String?)
+        VideoInformation.setChannelName(channelName.invoke(playerResponse) as String?)
+        if (videoTitle != null) VideoInformation.setVideoTitle(videoTitle.invoke(playerResponse) as String?)
+        VideoInformation.setLiveStream(isLive.invoke(playerResponse) as Boolean)
+    }
     ::channelInformationMethods.dexMethodList.forEach { method ->
         method.hookMethod {
             before { param ->
-                val playerResponse = param.args[0]
-                VideoInformation.setChannelId(channelId.invoke(playerResponse) as String?)
-                VideoInformation.setChannelName(channelName.invoke(playerResponse) as String?)
-                if (videoTitle != null) {
-                    VideoInformation.setVideoTitle(videoTitle.invoke(playerResponse) as String?)
-                }
-                VideoInformation.setLiveStream(isLive.invoke(playerResponse) as Boolean)
+                updateChannelInformation(param.args[0])
             }
         }
     }
+
+    // A preloaded playback, such as the next Short, becomes the current one without loadVideo().
+    ::currentPlaybackMethod.hookMethod(scopedHook(::currentPlaybackApplyResponseMethod.method) {
+        before { updateChannelInformation(it.args[0]) }
+    })
 
     // endregion.
 

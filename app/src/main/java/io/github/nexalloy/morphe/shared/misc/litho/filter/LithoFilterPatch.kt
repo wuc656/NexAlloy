@@ -2,7 +2,9 @@ package io.github.nexalloy.morphe.shared.misc.litho.filter
 
 import app.morphe.extension.shared.patches.components.Filter
 import app.morphe.extension.shared.patches.components.LithoFilterPatch
-import de.robv.android.xposed.XC_MethodReplacement
+import de.robv.android.xposed.XposedHelpers
+import io.github.nexalloy.createProxy
+import io.github.nexalloy.morphe.shared.misc.litho.context.commandEventDataDecorators
 import io.github.nexalloy.Patch
 import io.github.nexalloy.PatchExecutor
 import io.github.nexalloy.hookMethod
@@ -11,7 +13,6 @@ import io.github.nexalloy.morphe.youtube.insertLiteralOverride
 import io.github.nexalloy.new
 import io.github.nexalloy.patch
 import io.github.nexalloy.scopedHook
-import java.nio.ByteBuffer
 
 fun addLithoFilter(filter: Filter){
     LithoFilterPatch.addFilter(filter)
@@ -37,14 +38,6 @@ fun addLithoFilter(filter: Filter){
  *
  * The following pseudocode shows how this patch works:
  *
- * class SomeOtherClass {
- *    // Called before ComponentContextParser.parseComponent() method.
- *    public void someOtherMethod(ByteBuffer byteBuffer) {
- *        ExtensionClass.setProtoBuffer(byteBuffer); // Inserted by this patch.
- *        ...
- *   }
- * }
- *
  * class ComponentContextParser {
  *    public Component parseComponent() {
  *        ...
@@ -56,40 +49,21 @@ fun addLithoFilter(filter: Filter){
  *    }
  * }
  *
- * @param hookNonNativeBuffer Whether to also insert the non-native ByteBuffer hook.
- *                            Older client versions push data through a non-native path; newer ones
- *                            (YouTube 20.22+, YT Music 9.x) always use the native Upb encode path.
- *                            Evaluated lazily inside execute so version flags are already set.
  * @param overrideUpbFeatureFlag Whether to override the A/B feature flag that enables Upb-native
  *                               protobuf parsing (only present on older YouTube; absent in Music).
+ * @param removeFilteredListItems Remove fully filtered elements from their backing lists.
  * @param block Callback to add app-specific dependencies (sharedExtensionPatch, conversionContextPatch,
  *              versionCheckPatch, and any app-specific fixes).
  */
 internal fun sharedLithoFilterPatch(
-    hookNonNativeBuffer: () -> Boolean,
     overrideUpbFeatureFlag: () -> Boolean,
-    useLegacyLithoFiltering: () -> Boolean,
+    removeFilteredListItems: Boolean,
     block: PatchExecutor.() -> Unit,
 ): Patch = patch(
     description = "Hooks the method which parses the bytes into a ComponentContext to filter components."
 ) {
     block()
 
-
-    LithoFilterPatch::class.java.getDeclaredMethod("useLegacyLithoFiltering")
-        .hookMethod(XC_MethodReplacement.returnConstant(useLegacyLithoFiltering()))
-
-    //region Pass the buffer into extension.
-    if (!hookNonNativeBuffer()) {
-        // Non-native buffer.
-        ProtobufBufferReferenceFingerprint.hookMethod {
-            before { param ->
-                LithoFilterPatch.setProtoBuffer(param.args[1] as ByteBuffer)
-            }
-        }
-    }
-
-    //endregion
 
     // region Hook the method that parses bytes into a ComponentContext.
 
@@ -133,6 +107,71 @@ internal fun sharedLithoFilterPatch(
     }
 
     //endregion
+
+    // region Remove the items of the lists whose whole element is filtered.
+
+    if (removeFilteredListItems) {
+        val decorators = ::commandEventDataDecoratorsMethod.method
+        val dataField = ::listItemDecoratorDataField.field
+        val itemField = ::listItemDataField.field
+        commandEventDataDecorators = { context ->
+            (decorators.invoke(context) as? List<*>)?.map { decorator ->
+                if (dataField.declaringClass.isInstance(decorator)) {
+                    object : LithoFilterPatch.ListItemDecoratorInterface {
+                        override fun patch_getListItem(): Any? =
+                            dataField.get(decorator)?.let { itemField.get(it) }
+                    }
+                } else decorator
+            }
+        }
+
+        // Keep the observable lists, to remove the items from them.
+        ObservableListConstructorFingerprint.hookMethod {
+            after { LithoFilterPatch.addObservableList(it.thisObject as List<*>) }
+        }
+
+        val itemsField = ::listSectionItemsField.field
+        val removeItem = ListSectionRemoveItemFingerprint.method
+        val isGrid = ::listSectionIsGridMethod.method
+        val layOutRows = ::listSectionLayOutRowsMethod.method
+        val updateSection = ::listSectionUpdateMethod.method
+        val proxyKey = "lithoListSection"
+        removeItem.declaringClass.declaredConstructors.forEach { constructor ->
+            constructor.hookMethod {
+                after {
+                    if (XposedHelpers.getAdditionalInstanceField(it.thisObject, proxyKey) != null) return@after
+                    val proxy = it.thisObject.createProxy { impl ->
+                        LithoFilterPatch.ListSectionInterface { item ->
+                            val section = impl.get() ?: return@ListSectionInterface false
+                            val items = itemsField.get(section) as List<*>
+                            val contains = items.contains(item)
+                            if (contains) {
+                                val wasGrid = isGrid.invoke(section) as Boolean
+                                removeItem.invoke(section, item)
+                                if (wasGrid && !(isGrid.invoke(section) as Boolean) &&
+                                    (itemsField.get(section) as List<*>).isNotEmpty()) {
+                                    layOutRows.invoke(section)
+                                    updateSection.invoke(section)
+                                }
+                            }
+                            contains
+                        }
+                    }
+                    XposedHelpers.setAdditionalInstanceField(it.thisObject, proxyKey, proxy)
+                    LithoFilterPatch.addListSection(proxy)
+                }
+            }
+        }
+        ListSectionReleaseFingerprint.hookMethod {
+            before {
+                val proxy = XposedHelpers.getAdditionalInstanceField(it.thisObject, proxyKey)
+                    as? LithoFilterPatch.ListSectionInterface
+                if (proxy != null) LithoFilterPatch.removeListSection(proxy)
+            }
+        }
+    }
+
+    // endregion
 
     // region Change Litho thread executor to 1 thread to fix layout issue in unpatched YouTube.
 

@@ -14,9 +14,14 @@ import io.github.nexalloy.hookMethod
  * Hooks the method that starts navigation to another video.
  * The extension method receives the navigation intent enum and returns true to cancel the navigation.
  */
-internal fun PatchExecutor.navigationIntentHook(callback: (Enum<*>) -> Boolean) {
+internal fun PatchExecutor.navigationIntentHook(
+    callback: (Enum<*>) -> Boolean,
+    includePlayerButtons: Boolean = false
+) {
     val enumField = ::navigationIntentField.field
-    ::navigationIntentMethods.dexMethodList.forEach { method ->
+    val methods = ::navigationIntentMethods.dexMethodList +
+            if (includePlayerButtons) listOf(::navigationPlayerButtonsMethod.dexMethod) else emptyList()
+    methods.forEach { method ->
         method.hookMethod {
             before {
                 if (callback(enumField.get(it.args[0]) as Enum<*>)) {

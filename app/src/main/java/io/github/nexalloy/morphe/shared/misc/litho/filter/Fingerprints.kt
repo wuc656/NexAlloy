@@ -3,16 +3,19 @@ package io.github.nexalloy.morphe.shared.misc.litho.filter
 import io.github.nexalloy.AllowAbstract
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
+import io.github.nexalloy.morphe.StrictQuery
 import io.github.nexalloy.morphe.InstructionLocation.MatchAfterImmediately
 import io.github.nexalloy.morphe.InstructionLocation.MatchAfterWithin
 import io.github.nexalloy.morphe.Opcode
-import io.github.nexalloy.morphe.OpcodesFilter
 import io.github.nexalloy.morphe.fieldAccess
 import io.github.nexalloy.morphe.findClassDirect
+import io.github.nexalloy.morphe.findFieldDirect
 import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.literal
 import io.github.nexalloy.morphe.methodCall
 import io.github.nexalloy.morphe.opcode
+import io.github.nexalloy.morphe.shared.misc.litho.context.ConversionContextToStringFingerprint
+import io.github.nexalloy.morphe.findFieldFromToString
 import io.github.nexalloy.morphe.string
 
 internal object AccessibilityIdFingerprint : Fingerprint(
@@ -87,18 +90,6 @@ internal object ProtobufBufferEncodeFingerprint : Fingerprint(
     )
 )
 
-object ProtobufBufferReferenceFingerprint : Fingerprint(
-    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
-    returnType = "V",
-    parameters = listOf("I", "Ljava/nio/ByteBuffer;"),
-    filters = OpcodesFilter.opcodesToFilters(
-        Opcode.IPUT,
-        Opcode.INVOKE_VIRTUAL,
-        Opcode.MOVE_RESULT,
-        Opcode.SUB_INT_2ADDR,
-    )
-)
-
 private object EmptyComponentParentFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PRIVATE, AccessFlags.CONSTRUCTOR),
     parameters = listOf(),
@@ -124,4 +115,151 @@ internal object LithoThreadExecutorFingerprint : Fingerprint(
 
 val emptyComponentClass = findClassDirect {
     EmptyComponentParentFingerprint().declaredClass!!
+}
+
+/**
+ * Creates the decorator of the command event data of an item of a list, such as the feed.
+ * The decorator holds the data, and the item is the first parameter of the data.
+ */
+internal object CommandEventDataDecoratorFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    returnType = "L",
+    parameters = listOf("Ljava/lang/Object;", "L", "Ljava/util/Map;"),
+    filters = listOf(
+        methodCall(
+            name = "<init>",
+            parameters = listOf("Ljava/lang/Object;", "L", "L", "L", "Ljava/util/List;")
+        ),
+        methodCall(
+            opcode = Opcode.INVOKE_DIRECT,
+            name = "<init>",
+            parameters = listOf("Ljava/util/Map;", "L"),
+            location = MatchAfterWithin(2)
+        )
+    )
+)
+
+/**
+ * Constructor of the observable list that holds the items of the lists, such as the feed.
+ */
+internal object ObservableListConstructorFingerprint : Fingerprint(
+    name = "<init>",
+    accessFlags = listOf(AccessFlags.PROTECTED, AccessFlags.CONSTRUCTOR),
+    parameters = listOf("Ljava/util/List;", "L"),
+    custom = { declaredClass { superClass { descriptor = "Ljava/util/AbstractList;" } } }
+)
+
+/**
+ * Removes an item from a section of a list, such as the feed or the related videos, and lays the
+ * section out again without it. The grids of the tablet layout that group the items of a section
+ * into rows, such as the related videos, are laid out again too.
+ */
+@StrictQuery
+internal object ListSectionRemoveItemFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("Ljava/lang/Object;"),
+    filters = listOf(
+        // The header of the section, which hides the whole section instead.
+        fieldAccess(opcode = Opcode.IGET_OBJECT),
+        opcode(Opcode.IF_NE, location = MatchAfterWithin(2)),
+        // The items of the section.
+        fieldAccess(opcode = Opcode.IGET_OBJECT, type = "Ljava/util/List;", location = MatchAfterWithin(4)),
+        methodCall(
+            definingClass = "Ljava/util/List;",
+            name = "remove",
+            parameters = listOf("Ljava/lang/Object;"),
+            location = MatchAfterImmediately()
+        ),
+        opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately()),
+        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately())
+    )
+)
+
+/**
+ * Releases a section of a list, such as when the list is created again.
+ * The section stops listening to the events, such as the removal of its items.
+ */
+internal object ListSectionReleaseFingerprint : Fingerprint(
+    classFingerprint = ListSectionRemoveItemFingerprint,
+    accessFlags = listOf(AccessFlags.PUBLIC),
+    returnType = "V",
+    parameters = listOf(),
+    filters = listOf(
+        fieldAccess(opcode = Opcode.IGET_OBJECT, definingClass = "this"),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            parameters = listOf("Ljava/lang/Object;"),
+            returnType = "V",
+            location = MatchAfterImmediately()
+        )
+    )
+)
+
+/**
+ * Updates a section of a list after its items are removed. A grid lays out its rows again,
+ * otherwise the items are removed one by one.
+ */
+@StrictQuery
+internal object ListSectionUpdateRowsFingerprint : Fingerprint(
+    classFingerprint = ListSectionRemoveItemFingerprint,
+    returnType = "V",
+    filters = listOf(
+        // If the section is a grid.
+        methodCall(opcode = Opcode.INVOKE_DIRECT, definingClass = "this", returnType = "Z", parameters = listOf()),
+        opcode(Opcode.MOVE_RESULT, location = MatchAfterImmediately()),
+        opcode(Opcode.IF_EQZ, location = MatchAfterImmediately()),
+        // Lays out the rows again.
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            definingClass = "this",
+            returnType = "V",
+            parameters = listOf(),
+            location = MatchAfterImmediately()
+        ),
+        // Updates the rest of the section, such as the show more button. It is right after
+        // laying out the rows on some versions, and after removing the items on others.
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            definingClass = "this",
+            returnType = "V",
+            parameters = listOf()
+        )
+    )
+)
+
+internal val commandEventDataDecoratorsMethod = findMethodDirect {
+    val field = ConversionContextToStringFingerprint().findFieldFromToString(", globalCommandEventDataDecoratorsInternal=")
+    Fingerprint(
+        definingClass = field.declaredClass!!.descriptor,
+        returnType = field.typeSign,
+        parameters = emptyList(),
+        filters = listOf(fieldAccess(opcode = Opcode.IGET_OBJECT, reference = field))
+    ).match().method
+}
+
+internal val listItemDataField = findFieldDirect {
+    CommandEventDataDecoratorFingerprint.instructionMatches.first().instruction.methodRef!!.declaredClass!!.fields
+        .single { it.typeSign == "Ljava/lang/Object;" }
+}
+
+internal val listItemDecoratorDataField = findFieldDirect {
+    val dataType = listItemDataField().declaredClass!!
+    CommandEventDataDecoratorFingerprint.instructionMatches.last().instruction.methodRef!!.declaredClass!!.fields
+        .single { it.type == dataType }
+}
+
+internal val listSectionItemsField = findFieldDirect {
+    ListSectionRemoveItemFingerprint.instructionMatches[2].instruction.fieldRef!!
+}
+
+internal val listSectionIsGridMethod = findMethodDirect {
+    ListSectionUpdateRowsFingerprint.instructionMatches[0].instruction.methodRef!!
+}
+
+internal val listSectionLayOutRowsMethod = findMethodDirect {
+    ListSectionUpdateRowsFingerprint.instructionMatches[3].instruction.methodRef!!
+}
+
+internal val listSectionUpdateMethod = findMethodDirect {
+    ListSectionUpdateRowsFingerprint.instructionMatches[4].instruction.methodRef!!
 }

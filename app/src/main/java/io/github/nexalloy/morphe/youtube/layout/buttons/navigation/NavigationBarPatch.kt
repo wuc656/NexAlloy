@@ -32,7 +32,6 @@ import io.github.nexalloy.morphe.youtube.misc.navigation.NavigationBarHook
 import io.github.nexalloy.morphe.youtube.misc.navigation.addBottomBarContainerHook
 import io.github.nexalloy.morphe.youtube.misc.navigation.hookNavigationButtonCreated
 import io.github.nexalloy.morphe.youtube.misc.playservice.VersionCheck
-import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_26_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_31_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_07_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_35_or_greater
@@ -105,7 +104,7 @@ val NavigationBar = patch(
     navPreferences += setOf(
         SwitchPreference("morphe_hide_navigation_new_content_dot"),
         SwitchPreference("morphe_navigation_bar_animations", summary = true),
-//        SwitchPreference("morphe_disable_translucent_navigation", summary = true)
+//        ListPreference("morphe_navigation_bar_style")
     )
 
     if (is_20_31_or_greater) {
@@ -155,17 +154,16 @@ val NavigationBar = patch(
     insertLiteralOverride(45632194L, NavigationBarPatch::useTranslucentNavigationBar)
     insertLiteralOverride(45631257L, NavigationBarPatch::useTranslucentNavigationBarBackground)
 
-    // Android 12 and 13 can submit the player surface from two threads while drawing the blur.
-    // The translucent color is retained, and only the duplicate blurred drawing is disabled.
-    if (Build.VERSION.SDK_INT in 31..33) {
+    // Transparent and opaque styles omit the blur, which can crash Android 12 and 13.
+    if (Build.VERSION.SDK_INT >= 29) {
         val canvases = listOf(
             Canvas::class.java,
             Class.forName("android.graphics.RecordingCanvas")
         )
         canvases.map { it.getMethod("isHardwareAccelerated") }.distinct().forEach { hardwareAccelerated ->
             NavigationBarBlurDrawFingerprint.hookMethod(scopedHook(hardwareAccelerated) {
-                before {
-                    if (NavigationBarPatch.isTranslucentNavigationBarBackgroundForced()) it.result = false
+                after {
+                    it.result = NavigationBarPatch.useNavigationBarBlur(it.result as Boolean)
                 }
             })
         }
@@ -226,16 +224,14 @@ val NavigationBar = patch(
     })
     PageBottomMarginFingerprint.hookMethod(scopedHook(::pageBottomMarginConstructor.constructor) {
         before {
-            if (it.args[1] == 1 && outerParam.getObjectExtra("navigationKeyboardMargin") == true &&
-                NavigationBarPatch.isTranslucentNavigationBarForced()) {
-                it.args[0] = 0
-                NavigationBarPatch.setKeyboardMarginRemoved()
+            if (it.args[1] == 1 && outerParam.getObjectExtra("navigationKeyboardMargin") == true) {
+                it.args[0] = NavigationBarPatch.getKeyboardMargin(it.args[0] as Int)
             }
         }
     })
 
     // A feed behind the navigation bar includes the keyboard in its bottom padding.
-    if (is_20_26_or_greater && Build.VERSION.SDK_INT >= 30) {
+    if (Build.VERSION.SDK_INT >= 30) {
         val setFeedPadding = View::class.java.getMethod(
             "setPadding", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType, Int::class.javaPrimitiveType

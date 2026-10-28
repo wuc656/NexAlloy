@@ -8,6 +8,7 @@ import app.morphe.extension.youtube.settings.YouTubeActivityHook
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XC_MethodReplacement
 import io.github.nexalloy.R
+import io.github.nexalloy.hookMethod
 import io.github.nexalloy.invokeOriginalMethod
 import io.github.nexalloy.morphe.shared.misc.initialization.initializationPatch
 import io.github.nexalloy.morphe.shared.misc.settings.preference.BasePreference
@@ -59,7 +60,19 @@ val SettingsHook = patch(
 
     // Remove other methods as they will break as the onCreate method is modified above.
     ::licenseActivityNOTonCreate.dexMethodList.forEach {
-        if (it.returnTypeName == "void") it.hookMethod(XC_MethodReplacement.DO_NOTHING)
+        if (it.returnTypeName == "void" && it.name != "onBackPressed") {
+            it.hookMethod(XC_MethodReplacement.DO_NOTHING)
+        }
+    }
+
+    val settingsActivityClass = ::licenseActivityClass.clazz
+    settingsActivityClass.getMethod("onBackPressed").hookMethod {
+        before {
+            if (!settingsActivityClass.isInstance(it.thisObject)) return@before
+            val activity = it.thisObject as Activity
+            if (!YouTubeActivityHook.handleBackPress(activity)) activity.finish()
+            it.result = null
+        }
     }
 
     // Update shared dark mode status based on YT theme.
