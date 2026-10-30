@@ -1,7 +1,6 @@
 package io.github.nexalloy.morphe.facebook.ads
 
 import io.github.nexalloy.morphe.Fingerprint
-import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.methodCall
 
 // Ported from https://github.com/SysAdminDoc/Hushfacebook (GPL-3.0), feed/hook + shared/FeedEdge.
@@ -35,18 +34,3 @@ internal object EdgeSwapRunFingerprint : Fingerprint(
         methodCall(parameters = listOf(FEED_UNIT_EDGE, "Ljava/lang/String;"), returnType = "V"),
     ),
 )
-
-internal object FeedUnitGetterFingerprint : Fingerprint(
-    definingClass = FEED_UNIT_EDGE,
-    parameters = listOf(),
-    strings = listOf("inflateFeedUnit"),
-)
-
-internal object TimelineStoryRenderFingerprint : Fingerprint(
-    strings = listOf(
-        "sponsored_timeline_stories_test_key",
-        "timeline_stories_test_key",
-        "TimelineStoryComponent"
-    )
-)
-

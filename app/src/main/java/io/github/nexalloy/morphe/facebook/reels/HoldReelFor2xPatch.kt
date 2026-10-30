@@ -17,7 +17,7 @@ internal object HeroSetPlaybackSpeedFingerprint : Fingerprint(
 val HoldReelFor2x = patch(
     name = "Hold a reel for 2x",
     description = "Holding a reel plays it at double speed until you let go.",
-    use = true
+    use = false
 ) {
     runCatching {
         HeroSetPlaybackSpeedFingerprint.hookMethod(object : XC_MethodHook() {

@@ -5,8 +5,6 @@ import de.robv.android.xposed.XC_MethodHook
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.facebook.settings.FacebookSettings
 import io.github.nexalloy.patch
-import java.lang.reflect.Field
-import java.lang.reflect.Method
 
 /**
  * Fingerprint matching the method holding "HeroServicePlayer.setCustomQualityInternal".
@@ -27,7 +25,7 @@ internal object FormatEvaluatorFingerprint : Fingerprint(
 val DefaultPlaybackQuality = patch(
     name = "Default playback quality",
     description = "Plays videos, reels and video stories at the quality you choose in Hushfacebook's settings.",
-    use = true
+    use = false
 ) {
     runCatching {
         HeroSetCustomQualityFingerprint.hookMethod(object : XC_MethodHook() {

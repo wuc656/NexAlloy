@@ -6,6 +6,7 @@ package io.github.nexalloy.morphe.threads.ads
 
 import app.morphe.extension.shared.Logger
 import de.robv.android.xposed.XC_MethodHook
+import de.robv.android.xposed.XC_MethodReplacement
 import io.github.nexalloy.patch
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -26,6 +27,11 @@ val HideThreadsAds = patch(
     description = "Removes sponsored and ad posts from Threads feed before they are cached or rendered (HushThreads).",
     use = true
 ) {
+    // 1. Guard client-side ad injector
+    runCatching {
+        ::adInjectorFingerprint.hookMethod(XC_MethodReplacement.returnConstant(false))
+    }
+
     var mediaClass: Class<*>? = null
     var cachedMediaGetter: Method? = null
     var cachedUnitTypeField: Field? = null

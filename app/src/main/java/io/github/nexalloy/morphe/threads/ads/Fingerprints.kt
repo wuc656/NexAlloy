@@ -8,6 +8,7 @@ import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.literal
+import io.github.nexalloy.morphe.strings
 
 internal const val FEED_CACHE = "Lcom/instagram/barcelona/feed/data/cache/BarcelonaFeedCache;"
 internal const val FEED_CACHE_CLASS = "com.instagram.barcelona.feed.data.cache.BarcelonaFeedCache"
@@ -95,4 +96,20 @@ val permalinkAdResultConstructor = findMethodDirect {
             ref.paramTypeNames[1] == "int"
     } ?: error("Constructor not found in PermalinkAdFetchMethod")
     initInstruction.methodRef!!
+}
+
+val adInjectorFingerprint = findMethodDirect {
+    findMethod {
+        matcher {
+            strings("cross_surface_duplicate_ad", "Is ad pod")
+            returnType = "boolean"
+            paramCount = 3
+            modifiers = java.lang.reflect.Modifier.STATIC
+        }
+    }.firstOrNull() ?: findMethod {
+        matcher {
+            strings("Is ad pod")
+            returnType = "boolean"
+        }
+    }.first()
 }

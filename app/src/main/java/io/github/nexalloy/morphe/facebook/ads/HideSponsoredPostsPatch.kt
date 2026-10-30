@@ -128,21 +128,4 @@ val HideSponsoredPosts = patch(
             }
         }
     }
-
-    runCatching {
-        TimelineStoryRenderFingerprint.hookMethod {
-            before { param ->
-                val component = param.thisObject ?: return@before
-                for (field in component.javaClass.declaredFields) {
-                    field.isAccessible = true
-                    val value = runCatching { field.get(component) }.getOrNull() ?: continue
-                    if (isAd(value)) {
-                        Logger.printDebug { "Hide sponsored profile posts: Blocked ad on timeline" }
-                        param.result = null
-                        break
-                    }
-                }
-            }
-        }
-    }
 }

@@ -5,7 +5,6 @@ import io.github.nexalloy.morphe.music.YTMusicPatches
 import io.github.nexalloy.morphe.reddit.RedditPatches
 import io.github.nexalloy.morphe.youtube.YouTubePatches
 import io.github.nexalloy.revanced.googlephotos.GooglePhotosPatches
-import io.github.nexalloy.revanced.meta.MetaPatches
 import io.github.nexalloy.revanced.photomath.PhotomathPatches
 import io.github.nexalloy.revanced.strava.StravaPatches
 import io.github.nexalloy.morphe.facebook.FacebookPatches
@@ -18,8 +17,8 @@ val appPatchConfigurations = listOf(
     AppPatchInfo("Reddit", "com.reddit.frontpage", RedditPatches),
     AppPatchInfo("Google Photos", "com.google.android.apps.photos", GooglePhotosPatches),
     AppPatchInfo("Photomath", "com.microblink.photomath", PhotomathPatches),
-    AppPatchInfo("Instagram", "com.instagram.android", MetaPatches + arrayOf(io.github.nexalloy.morphe.instagram.ads.HideInstagramAds/*, io.github.nexalloy.morphe.instagram.theme.InstagramPureBlackDarkMode*/)),
-    AppPatchInfo("Threads", "com.instagram.barcelona", MetaPatches + arrayOf(io.github.nexalloy.morphe.threads.ads.HideThreadsAds/*, io.github.nexalloy.morphe.threads.theme.PureBlackDarkMode*/)),
+    AppPatchInfo("Instagram", "com.instagram.android", arrayOf(io.github.nexalloy.morphe.instagram.ads.HideInstagramAds/*, io.github.nexalloy.morphe.instagram.theme.InstagramPureBlackDarkMode*/)),
+    AppPatchInfo("Threads", "com.instagram.barcelona", arrayOf(io.github.nexalloy.morphe.threads.ads.HideThreadsAds/*, io.github.nexalloy.morphe.threads.theme.PureBlackDarkMode*/)),
     AppPatchInfo("Strava", "com.strava", StravaPatches),
     AppPatchInfo("AllTrails", "com.alltrails.alltrails", AllTrailsPatches),
     AppPatchInfo("Facebook", "com.facebook.katana", FacebookPatches),
