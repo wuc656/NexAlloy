@@ -90,7 +90,6 @@ git submodule update --init --recursive
   s.run(['git', 'commit', ...])
   ```
 
-## Development Principles
-- **Surgical Changes**: Touch only required lines. Do not reformat adjacent code or delete unrelated dead code.
+## Development Guidelines
 - **Error Handling**: Wrap non-universal or variant-dependent hooks in `runCatching`.
 - **DexKit Fingerprints**: Keep string matchers and method signatures strict and narrow to avoid false-positive matches.
