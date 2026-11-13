@@ -3,11 +3,11 @@ package io.github.nexalloy.morphe.youtube.layout.hide.general
 import io.github.nexalloy.SkipTest
 import io.github.nexalloy.morphe.AccessFlags
 import io.github.nexalloy.morphe.Fingerprint
-import io.github.nexalloy.morphe.InstructionLocation
 import io.github.nexalloy.morphe.InstructionLocation.MatchAfterImmediately
 import io.github.nexalloy.morphe.InstructionLocation.MatchAfterWithin
 import io.github.nexalloy.morphe.Opcode
 import io.github.nexalloy.morphe.ResourceType
+import io.github.nexalloy.morphe.StrictQuery
 import io.github.nexalloy.morphe.StringComparisonType
 import io.github.nexalloy.morphe.checkCast
 import io.github.nexalloy.morphe.fieldAccess
@@ -95,6 +95,8 @@ val bottomSheetMenuItemTextFingerprint = findMethodDirect {
     }.distinct().single()
 }
 
+// NexAlloy: The text color resource is shared; validate the complete text binding sequence.
+@StrictQuery
 internal object ContextualMenuItemBuilderFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL, AccessFlags.SYNTHETIC),
     returnType = "V",
@@ -121,7 +123,7 @@ internal object ContextualMenuItemBuilderFingerprint : Fingerprint(
             returnType = "I",
             location = MatchAfterWithin(7),
         ),
-        resourceLiteral(ResourceType.DIMEN, "poster_art_width_default"),
+        resourceLiteral(ResourceType.ATTR, "ytTextPrimary"),
     )
 )
 
@@ -138,10 +140,10 @@ internal object ContextualMenuItemBuilderOnClickFingerprint : Fingerprint(
     name = "onClick",
     parameters = listOf("Landroid/view/View;"),
     filters = listOf(
+        // NexAlloy: R8 may retain the protobuf base type instead of erasing it to Object.
         fieldAccess(
             opcode = Opcode.IGET_OBJECT,
-            definingClass = "this",
-            type = "Ljava/lang/Object;"
+            definingClass = "this"
         ),
         opcode(Opcode.CHECK_CAST, location = MatchAfterImmediately()),
         opcode(Opcode.INVOKE_STATIC, location = MatchAfterImmediately()),
@@ -215,3 +217,71 @@ internal object ShowControlsOnRelatedPanelDragFingerprint : Fingerprint(
         opcode(Opcode.RETURN_VOID, MatchAfterImmediately())
     )
 )
+
+internal object EntityMutationPayloadFingerprint : Fingerprint(
+    returnType = "[B",
+    filters = listOf(string("There can be only one field in EntityMutationPayload"))
+)
+
+val entityMutationBytesMethod = findMethodDirect {
+    val method = EntityMutationPayloadFingerprint()
+    method.instructions.mapNotNull { it.methodRef }.distinct().single {
+        it.declaredClass!!.descriptor == method.paramTypes.single().descriptor &&
+            it.returnType!!.descriptor == "[B" && it.paramTypes.isEmpty()
+    }
+}
+
+internal object MenuItemListBuilderFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    returnType = "L",
+    parameters = listOf("L", "Ljava/lang/Object;", "L", "L"),
+    filters = listOf(
+        methodCall(smali = "Ljava/util/List;->iterator()Ljava/util/Iterator;"),
+        methodCall(smali = "Ljava/util/Iterator;->hasNext()Z"),
+        methodCall(smali = "Ljava/util/Iterator;->next()Ljava/lang/Object;"),
+        opcode(Opcode.MOVE_RESULT_OBJECT, location = MatchAfterImmediately()),
+        opcode(Opcode.CHECK_CAST, location = MatchAfterImmediately()),
+        methodCall(
+            opcode = Opcode.INVOKE_STATIC,
+            parameters = listOf("L", "Ljava/lang/Object;", "L", "L"),
+            returnType = "L",
+            location = MatchAfterImmediately()
+        ),
+        opcode(Opcode.MOVE_RESULT_OBJECT, location = MatchAfterImmediately()),
+        methodCall(parameters = listOf("Ljava/lang/Iterable;"), location = MatchAfterImmediately())
+    )
+)
+
+internal object ActionBarMenuBuilderFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.STATIC),
+    returnType = "V",
+    filters = listOf(
+        methodCall(smali = "Landroid/util/SparseArray;->size()I"),
+        methodCall(smali = "Landroid/view/MenuInflater;->inflate(ILandroid/view/Menu;)V"),
+        methodCall(smali = "Landroid/view/Menu;->add(IIILjava/lang/CharSequence;)Landroid/view/MenuItem;")
+    )
+)
+
+internal object MetadataHighlightsColumnMeasureFingerprint : Fingerprint(
+    definingClass = "Lcom/google/android/apps/youtube/app/player/overlay/fullscreenengagement/layout/MetadataHighlightsColumnLinearLayout;",
+    name = "onMeasure",
+    returnType = "V",
+    parameters = listOf("I", "I")
+)
+
+val menuItemsCollectorMethod = findMethodDirect {
+    MenuItemListBuilderFingerprint.instructionMatches.last().instruction.methodRef!!
+}
+
+val actionBarMenuAddMethods = findMethodListDirect {
+    fun implementsMenu(type: org.luckypray.dexkit.result.ClassData): Boolean =
+        type.descriptor == "Landroid/view/Menu;" || type.interfaces.any(::implementsMenu) ||
+                type.superClass?.let(::implementsMenu) == true
+    Fingerprint(
+        name = "add",
+        parameters = listOf("I", "I", "I", "Ljava/lang/CharSequence;"),
+        returnType = "Landroid/view/MenuItem;"
+    ).matchAll().map { it.method }.filter {
+        !java.lang.reflect.Modifier.isAbstract(it.modifiers) && implementsMenu(it.declaredClass!!)
+    }.also { check(it.isNotEmpty()) }
+}

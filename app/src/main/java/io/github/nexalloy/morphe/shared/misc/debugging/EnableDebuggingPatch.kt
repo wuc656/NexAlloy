@@ -2,15 +2,16 @@ package io.github.nexalloy.morphe.shared.misc.debugging
 
 import app.morphe.extension.shared.patches.EnableDebuggingPatch
 import io.github.nexalloy.PatchExecutor
+import io.github.nexalloy.atLast
 import io.github.nexalloy.hookMethod
 import io.github.nexalloy.morphe.shared.misc.settings.preference.BasePreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.BasePreferenceScreen
+import io.github.nexalloy.morphe.shared.misc.settings.preference.ListPreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.NonInteractivePreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceScreenPreference
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceScreenPreference.Sorting
 import io.github.nexalloy.morphe.shared.misc.settings.preference.SwitchPreference
 import io.github.nexalloy.patch
-import io.github.nexalloy.atLast
 
 fun enableDebuggingPatch(
     block: PatchExecutor.() -> Unit = {},
@@ -18,6 +19,7 @@ fun enableDebuggingPatch(
     hookStringFeatureFlag: PatchExecutor.() -> Boolean,
     hookLongFeatureFlag: PatchExecutor.() -> Boolean,
     hookDoubleFeatureFlag: PatchExecutor.() -> Boolean,
+    hotFeatureFlags: PatchExecutor.() -> List<java.lang.reflect.Method>,
     preferenceScreen: BasePreferenceScreen.Screen,
     additionalDebugPreferences: List<BasePreference> = emptyList()
 ) = patch(
@@ -27,14 +29,13 @@ fun enableDebuggingPatch(
     block()
 
     val preferences = mutableSetOf<BasePreference>(
-        SwitchPreference("morphe_debug"),
+        ListPreference("morphe_debug_level"),
     )
 
     preferences.addAll(additionalDebugPreferences)
 
     preferences.addAll(
         listOf(
-            SwitchPreference("morphe_debug_stacktrace", summary = true),
             SwitchPreference("morphe_debug_toast_on_error"),
             NonInteractivePreference(
                 "morphe_debug_export_logs",
@@ -111,6 +112,29 @@ fun enableDebuggingPatch(
                     it.args.atLast(1) as String
                 )
             }
+        }
+    }
+
+    hotFeatureFlags().forEach { method ->
+        val flagIndex = method.parameterTypes.indexOf(Long::class.javaPrimitiveType)
+        check(flagIndex >= 0)
+        method.hookMethod {
+            after {
+                val flag = it.args[flagIndex] as Long
+                it.result = when (val original = it.result) {
+                    is Boolean -> EnableDebuggingPatch.isBooleanFeatureFlagEnabled(original, flag)
+                    is Double -> EnableDebuggingPatch.isDoubleFeatureFlagEnabled(original, flag, 0.0)
+                    is Long -> EnableDebuggingPatch.isLongFeatureFlagEnabled(original, flag, 0L)
+                    is String -> EnableDebuggingPatch.isStringFeatureFlagEnabled(original, flag, "")
+                    else -> original
+                }
+            }
+        }
+    }
+
+    BootstrapStoreReadFingerprint.hookMethod {
+        after {
+            it.result = EnableDebuggingPatch.isBootstrapFeatureFlagEnabled(it.result as Long, it.args[0] as Int)
         }
     }
 

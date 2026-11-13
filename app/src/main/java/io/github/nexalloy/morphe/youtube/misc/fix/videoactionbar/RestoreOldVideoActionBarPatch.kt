@@ -1,19 +1,24 @@
 package io.github.nexalloy.morphe.youtube.misc.fix.videoactionbar
 
+import app.morphe.extension.youtube.innertube.NextResponseOuterClass.SecondaryContents
 import app.morphe.extension.youtube.patches.RestoreOldVideoActionBarPatch
 import app.morphe.extension.youtube.patches.RestoreOldVideoActionBarPatch.ConfigInfoInterface
 import app.morphe.extension.youtube.patches.RestoreOldVideoActionBarPatch.RequestInterface
 import io.github.nexalloy.callMethod
+import io.github.nexalloy.morphe.shared.misc.proto.hookElement
 import io.github.nexalloy.morphe.shared.misc.request.buildRequestPatch
 import io.github.nexalloy.morphe.shared.misc.request.hookBuildRequest
-import io.github.nexalloy.morphe.shared.misc.settings.preference.SwitchPreference
+import io.github.nexalloy.morphe.shared.misc.settings.preference.ListPreference
 import io.github.nexalloy.morphe.youtube.insertLiteralOverride
+import io.github.nexalloy.morphe.youtube.interaction.downloads.GeneratedRegistryFingerprint
+import io.github.nexalloy.morphe.youtube.interaction.downloads.ProtobufClassParseByteArrayWithRegistryFingerprint
 import io.github.nexalloy.morphe.youtube.misc.contexthook.Endpoint
 import io.github.nexalloy.morphe.youtube.misc.contexthook.addClientVersionHook
 import io.github.nexalloy.morphe.youtube.misc.contexthook.clientContextHookPatch
 import io.github.nexalloy.morphe.youtube.misc.playservice.VersionCheck
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_30_or_greater
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_39_or_greater
+import io.github.nexalloy.morphe.youtube.misc.proto.elementProtoParserHookPatch
 import io.github.nexalloy.morphe.youtube.misc.settings.PreferenceScreen
 import io.github.nexalloy.patch
 import io.github.nexalloy.scopedHook
@@ -22,11 +27,44 @@ import java.util.function.Supplier
 internal val restoreOldVideoActionBarPatch = patch(
     description = "Overrides 'X-Youtube-Cold-Config-Data', fixes 'Hide video action buttons' and 'Return YouTube Dislike', "
 ) {
-    dependsOn(VersionCheck, clientContextHookPatch)
+    dependsOn(VersionCheck, clientContextHookPatch, elementProtoParserHookPatch)
 
     PreferenceScreen.PLAYER.addPreferences(
-        SwitchPreference("morphe_restore_old_video_action_bar", summary = true)
+        ListPreference("morphe_video_action_bar_layout")
     )
+
+    // The layout of the action bar is a field of its element, so the Classic and Minimal layouts
+    // do not depend on the layout that the server sends.
+    hookElement(RestoreOldVideoActionBarPatch::setVideoActionBarLayout)
+
+    // The two rows of the Classic Two-Rows layout are two elements, and the server sends one.
+    val sectionsField = ::watchNextSectionsField.field
+    val isModifiable = ::protobufListIsModifiableMethod.method
+    val mutableCopy = ::protobufListMutableCopyMethod.method
+    val makeImmutable = ::protobufListMakeImmutableMethod.method
+    val parse = ProtobufClassParseByteArrayWithRegistryFingerprint.method
+    val registry = GeneratedRegistryFingerprint.method.invoke(null)
+    ::watchNextRowsMethod.hookMethod {
+        before {
+            @Suppress("UNCHECKED_CAST")
+            val sections = sectionsField.get(it.args[0]) as MutableList<Any>
+            if (sections.isEmpty()) return@before
+            val first = sections[0]
+            // Serialize only the first section; other patches can change later sections in place.
+            val section = SecondaryContents.parseFrom(first.callMethod("toByteArray") as ByteArray)
+            val bytes = RestoreOldVideoActionBarPatch.getTwoRowsSection(section) ?: return@before
+            val updated = parse.invoke(null, first, bytes, registry)!!
+            if (isModifiable.invoke(sections) as Boolean) {
+                sections[0] = updated
+            } else {
+                @Suppress("UNCHECKED_CAST")
+                val copy = mutableCopy.invoke(null, sections) as MutableList<Any>
+                copy[0] = updated
+                makeImmutable.invoke(copy)
+                sectionsField.set(it.args[0], copy)
+            }
+        }
+    }
 
     if (is_20_39_or_greater) {
         insertLiteralOverride(45640404L, RestoreOldVideoActionBarPatch::useMediaSessionFeatureFlag)

@@ -11,8 +11,10 @@
 package io.github.nexalloy.morphe.youtube.layout.seekbar
 
 import app.morphe.extension.youtube.patches.theme.SeekbarColorPatch
+import io.github.nexalloy.morphe.setExtensionIsPatchIncluded
 import io.github.nexalloy.morphe.shared.layout.theme.lithoColorHookPatch
 import io.github.nexalloy.morphe.shared.layout.theme.lithoColorOverrideHook
+import io.github.nexalloy.morphe.youtube.insertLiteralOverride
 import io.github.nexalloy.morphe.youtube.misc.playservice.VersionCheck
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_21_30_or_greater
 import io.github.nexalloy.patch
@@ -23,6 +25,12 @@ val seekbarColorPatch = patch(
     description = "Hide the seekbar in video thumbnails",
 ) {
     dependsOn(VersionCheck, lithoColorHookPatch { is_21_30_or_greater })
+
+    setExtensionIsPatchIncluded(SeekbarColorPatch::class.java)
+
+    // Some videos have their own seekbar style, which replaces the handle with an image
+    // and ignores the color of the player seekbar. The flag shows the style and draws its image.
+    insertLiteralOverride(45681792L, false)
 
     lithoColorOverrideHook(SeekbarColorPatch::getLithoColor)
 
