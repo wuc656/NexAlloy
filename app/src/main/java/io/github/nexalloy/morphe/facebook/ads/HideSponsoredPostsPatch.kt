@@ -4,8 +4,6 @@ import app.morphe.extension.shared.Logger
 import io.github.nexalloy.patch
 import java.lang.reflect.Method
 
-private val HIDDEN_CATEGORIES = setOf("SPONSORED", "PROMOTION")
-
 private val SUGGESTED_UNITS = setOf(
     "GraphQLPagesYouMayLikeFeedUnit",
     "GraphQLPaginatedPagesYouMayLikeFeedUnit",
@@ -71,11 +69,14 @@ val HideSponsoredPosts = patch(
     }
 
     fun isAd(edge: Any?): Boolean {
-        if (edge == null) return false
+        if (edge == null || (edgeClass != null && !edgeClass.isInstance(edge))) return false
         val category = runCatching { categoryGetter?.invoke(edge) as? Enum<*> }.getOrNull()
-        if (category?.name in HIDDEN_CATEGORIES) {
-            return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+        when (category?.name) {
+            "SPONSORED" -> return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
                 io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_SPONSORED_POSTS, true
+            )
+            "PROMOTION" -> return io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_HIDE_PROMOTED_POSTS, true
             )
         }
         

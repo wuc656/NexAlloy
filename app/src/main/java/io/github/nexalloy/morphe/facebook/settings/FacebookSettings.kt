@@ -18,7 +18,6 @@ object FacebookSettings {
     const val KEY_DISABLE_AUDIENCE_NETWORK = "hushfacebook_disable_audience_network"
     const val KEY_HIDE_REELS_IN_FEED = "hushfacebook_hide_reels_in_feed"
     const val KEY_HIDE_SUGGESTED_POSTS = "hushfacebook_hide_suggested_posts"
-    const val KEY_FORCE_DARK_MODE = "hushfacebook_force_dark_mode"
     const val KEY_HIDE_SPONSORED_PROFILE_POSTS = "hushfacebook_hide_sponsored_profile_posts"
     const val KEY_HIDE_META_AI_QUESTIONS = "hushfacebook_hide_meta_ai_questions"
     const val KEY_HIDE_FEEDS_HEADER = "hushfacebook_hide_feeds_header"
@@ -35,6 +34,7 @@ object FacebookSettings {
     const val KEY_HOLD_REEL_FOR_2X = "hushfacebook_hold_reel_for_2x"
     const val KEY_DEFAULT_PLAYBACK_QUALITY = "hushfacebook_default_playback_quality"
     const val KEY_PLAYBACK_QUALITY = "hushfacebook_playback_quality"
+    const val KEY_BLOCK_GAME_ADS = "hushfacebook_block_game_ads"
 
     // Mapping of Hushfacebook internal settings keys to NexAlloy Patch names
     val PATCH_MAPPING: Map<String, String> = mapOf(
@@ -63,7 +63,8 @@ object FacebookSettings {
         KEY_VIEW_STORIES_ANONYMOUSLY to "View stories anonymously",
         KEY_STOP_STORY_AUTO_ADVANCE to "Stop Story auto-advance",
         KEY_HOLD_REEL_FOR_2X to "Hold a reel for 2x",
-        KEY_DEFAULT_PLAYBACK_QUALITY to "Default playback quality"
+        KEY_DEFAULT_PLAYBACK_QUALITY to "Default playback quality",
+        KEY_BLOCK_GAME_ADS to "Block Instant Games ads"
     )
 
     private var prefs: SharedPreferences? = null

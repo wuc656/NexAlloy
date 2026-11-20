@@ -15,6 +15,7 @@ import io.github.nexalloy.morphe.facebook.feed.HideFeedsHeader
 import io.github.nexalloy.morphe.facebook.feed.KeepPostDates
 import io.github.nexalloy.morphe.facebook.ads.HideSponsoredSearchResults
 import io.github.nexalloy.morphe.facebook.ads.HideSponsoredMarketplaceListings
+import io.github.nexalloy.morphe.facebook.ads.BlockInstantGamesAds
 import io.github.nexalloy.morphe.facebook.misc.SanitizeSharingLinks
 import io.github.nexalloy.morphe.facebook.stories.HideSuggestedStories
 import io.github.nexalloy.morphe.facebook.stories.ViewStoriesAnonymously
@@ -51,6 +52,7 @@ val FacebookPatches = arrayOf(
     HideSponsoredSearchResults,
     TabBarAtTheBottom,
     HideSponsoredMarketplaceListings,
+    BlockInstantGamesAds,
     SanitizeSharingLinks,
     HideSuggestedStories,
     HideReelPrompts,

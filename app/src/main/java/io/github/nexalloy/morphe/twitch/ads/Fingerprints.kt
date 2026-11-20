@@ -1,6 +1,9 @@
 package io.github.nexalloy.morphe.twitch.ads
 
+import io.github.nexalloy.morphe.Opcode
+import io.github.nexalloy.morphe.findFieldDirect
 import io.github.nexalloy.morphe.findMethodDirect
+import io.github.nexalloy.morphe.opcodeEnum
 import io.github.nexalloy.morphe.strings
 
 /**
@@ -32,6 +35,21 @@ val DisplayAdResponseParserFingerprint = findMethodDirect {
             paramCount = 2
         }
     }.single()
+}
+
+/**
+ * Extracts the obfuscated NoAd singleton static field from DisplayAdResponseParserFingerprint's HTTP 204 branch.
+ */
+val displayAdNoAdField = findFieldDirect {
+    val parser = DisplayAdResponseParserFingerprint()
+    val returnDesc = parser.returnType?.descriptor
+    parser.instructions.firstNotNullOf { inst ->
+        if (inst.opcodeEnum != Opcode.SGET_OBJECT) return@firstNotNullOf null
+        val f = inst.fieldRef ?: return@firstNotNullOf null
+        val matchesType = f.typeName == f.declaredClassName &&
+            (returnDesc == null || f.declaredClass?.superClass?.descriptor == returnDesc)
+        if (matchesType) f else null
+    }
 }
 
 /**

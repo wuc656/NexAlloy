@@ -2,9 +2,12 @@ package io.github.nexalloy.morphe.facebook.ads
 
 import app.morphe.extension.shared.Logger
 import de.robv.android.xposed.XC_MethodHook
-import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.facebook.settings.FacebookSettings
+import io.github.nexalloy.morphe.findMethodListDirect
+import io.github.nexalloy.morphe.strings
 import io.github.nexalloy.patch
+import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 
 private val AD_ROLES = setOf(
     "SEARCH_ADS",
@@ -19,13 +22,32 @@ private val AD_ROLES = setOf(
 )
 
 /**
- * Fingerprint matching search results conversion or page builder methods
+ * Matches SERP module list converters returning an ImmutableList of search result modules.
+ * Anchored via the four kept role names in the module class's own ad set initializer.
  */
-internal object SearchPageBuilderFingerprint : Fingerprint(
-    custom = {
-        usingStrings("result_role")
+val searchModuleListConverters = findMethodListDirect {
+    val moduleClass = findMethod {
+        matcher {
+            name = "<clinit>"
+            strings(
+                "SEARCH_ADS",
+                "DEPENDENT_SEARCH_ADS",
+                "LATE_DEPENDENT_SEARCH_ADS",
+                "TOP_POSITION_SEARCH_ADS"
+            )
+        }
+    }.first().declaredClass!!
+
+    findMethod {
+        matcher {
+            returnType = "com.google.common.collect.ImmutableList"
+            addInvoke {
+                declaredClass(moduleClass.name)
+                name = "<init>"
+            }
+        }
     }
-)
+}
 
 /**
  * Hide sponsored search results:
@@ -35,87 +57,53 @@ val HideSponsoredSearchResults = patch(
     name = "Hide sponsored search results",
     description = "Removes the ads from Facebook's search results, sponsored posts, and ad cards between search results.",
 ) {
-    runCatching {
-        SearchPageBuilderFingerprint.hookMethod(object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                if (!FacebookSettings.isEnabled(FacebookSettings.KEY_HIDE_SPONSORED_SEARCH_RESULTS, true)) return
+    val copyOfMethod = runCatching {
+        classLoader.loadClass("com.google.common.collect.ImmutableList").declaredMethods.firstOrNull { m ->
+            m.name == "copyOf" && m.parameterTypes.size == 1 && Collection::class.java.isAssignableFrom(m.parameterTypes[0])
+        }
+    }.getOrNull()
 
-                val res = param.result ?: return
-                val immutableListClass = runCatching {
-                    classLoader.loadClass("com.google.common.collect.ImmutableList")
-                }.getOrNull()
-                val copyOf = immutableListClass?.declaredMethods?.firstOrNull { m ->
-                    m.name == "copyOf" && m.parameterTypes.size == 1 && Collection::class.java.isAssignableFrom(m.parameterTypes[0])
-                }
+    var cachedRoleField: Field? = null
+    var roleFieldResolved = false
 
-                if (res is List<*>) {
-                    val filtered = res.filter { item ->
-                        if (item == null) return@filter true
-                        val roleField = item.javaClass.declaredFields.firstOrNull { f ->
-                            Enum::class.java.isAssignableFrom(f.type)
-                        } ?: return@filter true
-                        roleField.isAccessible = true
-                        val roleEnum = runCatching { roleField.get(item) as? Enum<*> }.getOrNull()
-                        val isAd = roleEnum != null && roleEnum.name in AD_ROLES
-                        !isAd
-                    }
-                    if (filtered.size != res.size) {
-                        val replacement = if (copyOf != null) copyOf.invoke(null, filtered) else filtered
-                        param.result = replacement
-                        Logger.printDebug { "HideSponsoredSearchResults: Filtered ${res.size - filtered.size} ad items from search list" }
-                    }
-                    return
-                }
+    fun findRoleField(item: Any): Field? {
+        if (roleFieldResolved) return cachedRoleField
+        roleFieldResolved = true
+        cachedRoleField = item.javaClass.declaredFields.firstOrNull { f ->
+            !Modifier.isStatic(f.modifiers) && f.type.isEnum &&
+                runCatching {
+                    (f.type.enumConstants as? Array<*>)?.any { (it as? Enum<*>)?.name == "SEARCH_ADS" } == true
+                }.getOrDefault(false)
+        }?.apply { isAccessible = true }
+        return cachedRoleField
+    }
 
-                val page = res
-                for (field in page.javaClass.declaredFields) {
-                    if (List::class.java.isAssignableFrom(field.type)) {
-                        field.isAccessible = true
-                        val list = runCatching { field.get(page) as? List<*> }.getOrNull() ?: continue
-                        if (list.isEmpty()) continue
+    fun isAdModule(item: Any?): Boolean {
+        if (item == null) return false
+        val field = findRoleField(item) ?: return false
+        val roleEnum = runCatching { field.get(item) as? Enum<*> }.getOrNull() ?: return false
+        return roleEnum.name in AD_ROLES
+    }
 
-                        // Check if any element in list is an ad module
-                        var hasAds = false
-                        for (item in list) {
-                            if (item == null) continue
-                            val roleField = item.javaClass.declaredFields.firstOrNull { f ->
-                                Enum::class.java.isAssignableFrom(f.type)
-                            } ?: continue
-                            roleField.isAccessible = true
-                            val roleEnum = runCatching { roleField.get(item) as? Enum<*> }.getOrNull()
-                            if (roleEnum != null && roleEnum.name in AD_ROLES) {
-                                hasAds = true
-                                break
-                            }
-                        }
+    val hook = object : XC_MethodHook() {
+        override fun afterHookedMethod(param: MethodHookParam) {
+            if (!FacebookSettings.isEnabled(FacebookSettings.KEY_HIDE_SPONSORED_SEARCH_RESULTS, true)) return
+            val list = param.result as? List<*> ?: return
+            if (list.isEmpty() || list.none(::isAdModule)) return
 
-                        if (hasAds) {
-                            val filtered = list.filter { item ->
-                                if (item == null) return@filter true
-                                val roleField = item.javaClass.declaredFields.firstOrNull { f ->
-                                    Enum::class.java.isAssignableFrom(f.type)
-                                } ?: return@filter true
-                                roleField.isAccessible = true
-                                val roleEnum = runCatching { roleField.get(item) as? Enum<*> }.getOrNull()
-                                val isAd = roleEnum != null && roleEnum.name in AD_ROLES
-                                !isAd
-                            }
-
-                            // Try to replace list field with filtered copy
-                            runCatching {
-                                val replacement = if (copyOf != null) {
-                                    copyOf.invoke(null, filtered)
-                                } else {
-                                    filtered
-                                }
-
-                                field.set(page, replacement)
-                                Logger.printDebug { "HideSponsoredSearchResults: Filtered ad modules from search results page" }
-                            }
-                        }
-                    }
-                }
+            val filtered = list.filterNot(::isAdModule)
+            param.result = if (copyOfMethod != null) {
+                copyOfMethod.invoke(null, filtered)
+            } else {
+                filtered
             }
-        })
+            Logger.printDebug { "HideSponsoredSearchResults: Filtered ${list.size - filtered.size} ad modules" }
+        }
+    }
+
+    runCatching {
+        ::searchModuleListConverters.dexMethodList.forEach { converter ->
+            runCatching { converter.hookMethod(hook) }
+        }
     }
 }

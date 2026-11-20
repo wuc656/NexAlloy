@@ -20,22 +20,24 @@ val BlockLiveAds = patch(
         ::LiveManifestUrlBuilderFingerprint.hookMethod(object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 val origUri = param.result as? Uri ?: return
-                // Check if already routed or contains channel path
+                // Check if already routed
                 val origStr = origUri.toString()
                 if (origStr.contains(proxyUrl)) return
 
-                val thisObj = param.thisObject ?: return
-                // The stream name is stored in string field of the lambda
-                var streamName: String? = null
-                for (field in thisObj.javaClass.declaredFields) {
-                    if (field.type == String::class.java && !Modifier.isStatic(field.modifiers)) {
+                var streamName = origUri.lastPathSegment
+                    ?.substringBefore('.')
+                    ?.takeIf { it.isNotBlank() && !it.equals("hls", ignoreCase = true) }
+
+                if (streamName == null) {
+                    val thisObj = param.thisObject ?: return
+                    val candidates = thisObj.javaClass.declaredFields.mapNotNull { field ->
+                        if (field.type != String::class.java || Modifier.isStatic(field.modifiers)) return@mapNotNull null
                         field.isAccessible = true
-                        val str = runCatching { field.get(thisObj) as? String }.getOrNull()
-                        if (!str.isNullOrEmpty()) {
-                            streamName = str
-                            break
-                        }
+                        runCatching { field.get(thisObj) as? String }.getOrNull()
+                            ?.takeIf { it.isNotBlank() && !it.contains("://") }
                     }
+                    // Field 'b' (second instance field) captures the channel name in hoomans
+                    streamName = candidates.getOrNull(1) ?: candidates.firstOrNull()
                 }
 
                 if (!streamName.isNullOrEmpty()) {
@@ -59,36 +61,43 @@ val HideDisplayAds = patch(
     use = true
 ) {
     try {
-        ::DisplayAdResponseParserFingerprint.hookMethod(object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val resultObj = param.result ?: return
-                val returnClass = resultObj.javaClass.superclass ?: resultObj.javaClass
-                // Look for NoAd singleton or replace result with NoAd instance
-                for (field in returnClass.declaredFields) {
-                    if (Modifier.isStatic(field.modifiers) && returnClass.isAssignableFrom(field.type)) {
-                        field.isAccessible = true
-                        val singleton = runCatching { field.get(null) }.getOrNull()
-                        if (singleton != null && singleton.javaClass.simpleName.contains("NoAd", ignoreCase = true)) {
-                            param.result = singleton
-                            return
-                        }
-                    }
-                }
-                // Fallback: if class has static fields of its own type, use the NoAd constant (field 'a')
-                for (subClass in returnClass.classes) {
-                    for (field in subClass.declaredFields) {
-                        if (Modifier.isStatic(field.modifiers) && subClass.isAssignableFrom(field.type)) {
+        val noAdSingleton = runCatching {
+            ::displayAdNoAdField.field.apply { isAccessible = true }.get(null)
+        }.getOrNull()
+        if (noAdSingleton != null) {
+            ::DisplayAdResponseParserFingerprint.hookMethod(XC_MethodReplacement.returnConstant(noAdSingleton))
+        } else {
+            ::DisplayAdResponseParserFingerprint.hookMethod(object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val resultObj = param.result ?: return
+                    val returnClass = resultObj.javaClass.superclass ?: resultObj.javaClass
+                    // Look for NoAd singleton or replace result with NoAd instance
+                    for (field in returnClass.declaredFields) {
+                        if (Modifier.isStatic(field.modifiers) && returnClass.isAssignableFrom(field.type)) {
                             field.isAccessible = true
                             val singleton = runCatching { field.get(null) }.getOrNull()
-                            if (singleton != null) {
+                            if (singleton != null && singleton.javaClass.simpleName.contains("NoAd", ignoreCase = true)) {
                                 param.result = singleton
                                 return
                             }
                         }
                     }
+                    // Fallback: if class has static fields of its own type, use the NoAd constant (field 'a')
+                    for (subClass in returnClass.classes) {
+                        for (field in subClass.declaredFields) {
+                            if (Modifier.isStatic(field.modifiers) && subClass.isAssignableFrom(field.type)) {
+                                field.isAccessible = true
+                                val singleton = runCatching { field.get(null) }.getOrNull()
+                                if (singleton != null) {
+                                    param.result = singleton
+                                    return
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-        })
+            })
+        }
     } catch (t: Throwable) {
         Logger.printException({ "Failed to hook Hide display ads" }, t)
     }

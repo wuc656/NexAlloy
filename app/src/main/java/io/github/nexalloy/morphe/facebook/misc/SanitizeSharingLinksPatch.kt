@@ -8,7 +8,10 @@ import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import io.github.nexalloy.morphe.Fingerprint
 import io.github.nexalloy.morphe.facebook.settings.FacebookSettings
+import io.github.nexalloy.morphe.findMethodDirect
+import io.github.nexalloy.morphe.strings
 import io.github.nexalloy.patch
+import java.lang.reflect.Modifier
 
 private val TRACKING_PARAMS = setOf(
     "fbclid", "mibextid", "extid", "sfnsn", "rdid", "share_url",
@@ -46,12 +49,32 @@ internal object ExternalShareTrackerFingerprint : Fingerprint(
 )
 
 /**
+ * LinkSharingController wrapped-url cache read: bypassing it makes Facebook emit the post's clean direct URL instead of /share/.
+ */
+val linkSharingCacheReadMethod = findMethodDirect {
+    val controller = findClass {
+        matcher {
+            addMethod {
+                strings("fetch_wrapped_url_send_request")
+            }
+        }
+    }.single()
+
+    controller.findMethod {
+        matcher {
+            returnType = "java.lang.String"
+            paramTypes("java.lang.String", "java.lang.String")
+        }
+    }.single { !Modifier.isStatic(it.modifiers) }
+}
+
+/**
  * Sanitize sharing links:
- * Takes Facebook's tracking tags, such as mibextid, off links shared or copied.
+ * Takes Facebook's tracking tags, such as mibextid, off links shared or copied, and bypasses /share/ shortlink wrapping.
  */
 val SanitizeSharingLinks = patch(
     name = "Sanitize sharing links",
-    description = "Takes Facebook's tracking tags, such as mibextid, off the links you share or copy.",
+    description = "Takes Facebook's tracking tags, such as mibextid, off the links you share or copy, and preserves direct post links.",
 ) {
     // 1. Hook ExternalShareTracker methods that generate the URL
     runCatching {
@@ -64,23 +87,37 @@ val SanitizeSharingLinks = patch(
         })
     }
 
-    // 2. Hook ClipboardManager.setPrimaryClip as a universal safety net for Copy Link
-    val clipboardClass = ClipboardManager::class.java
-    val setPrimaryClipMethod = clipboardClass.declaredMethods.firstOrNull { it.name == "setPrimaryClip" }
-    if (setPrimaryClipMethod != null) {
-        XposedBridge.hookMethod(setPrimaryClipMethod, object : XC_MethodHook() {
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                if (!FacebookSettings.isEnabled(FacebookSettings.KEY_SANITIZE_SHARING_LINKS, true)) return
-                val clip = param.args?.getOrNull(0) as? ClipData ?: return
-                if (clip.itemCount > 0) {
-                    val text = clip.getItemAt(0)?.text?.toString() ?: return
-                    val sanitized = sanitizeUrl(text)
-                    if (sanitized != text) {
-                        param.args[0] = ClipData.newPlainText(clip.description.label, sanitized)
-                        Logger.printDebug { "SanitizeSharingLinks: Cleaned copied clipboard link" }
-                    }
+    // 2. Bypass /share/ short-link wrapper cache on LinkSharingController (OwnPostLink)
+    runCatching {
+        ::linkSharingCacheReadMethod.hookMethod {
+            before { param ->
+                if (FacebookSettings.isEnabled(FacebookSettings.KEY_SANITIZE_SHARING_LINKS, true)) {
+                    Logger.printDebug { "SanitizeSharingLinks: Bypassed /share/ wrapped URL cache" }
+                    param.result = null
                 }
             }
-        })
+        }
+    }
+
+    // 3. Hook ClipboardManager.setPrimaryClip as a universal safety net for Copy Link
+    runCatching {
+        val clipboardClass = ClipboardManager::class.java
+        val setPrimaryClipMethod = clipboardClass.declaredMethods.firstOrNull { it.name == "setPrimaryClip" }
+        if (setPrimaryClipMethod != null) {
+            XposedBridge.hookMethod(setPrimaryClipMethod, object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (!FacebookSettings.isEnabled(FacebookSettings.KEY_SANITIZE_SHARING_LINKS, true)) return
+                    val clip = param.args?.getOrNull(0) as? ClipData ?: return
+                    if (clip.itemCount > 0) {
+                        val text = clip.getItemAt(0)?.text?.toString() ?: return
+                        val sanitized = sanitizeUrl(text)
+                        if (sanitized != text) {
+                            param.args[0] = ClipData.newPlainText(clip.description.label, sanitized)
+                            Logger.printDebug { "SanitizeSharingLinks: Cleaned copied clipboard link" }
+                        }
+                    }
+                }
+            })
+        }
     }
 }

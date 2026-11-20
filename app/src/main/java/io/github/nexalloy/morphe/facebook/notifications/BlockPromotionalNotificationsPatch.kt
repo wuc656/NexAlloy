@@ -17,6 +17,10 @@ val BlockPromotionalNotifications = patch(
     runCatching {
         TrayManagerPostFingerprint.hookMethod {
             before { param ->
+                if (!io.github.nexalloy.morphe.facebook.settings.FacebookSettings.isEnabled(
+                        io.github.nexalloy.morphe.facebook.settings.FacebookSettings.KEY_BLOCK_PROMO_NOTIFS, true
+                    )
+                ) return@before
                 if (param.args == null || param.args.size < 4) return@before
                 val builder = param.args[3] ?: return@before
                 

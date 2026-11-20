@@ -6,7 +6,5 @@ import io.github.nexalloy.patch
 val HideAds = patch(
     name = "Hide ads",
 ) {
-    runCatching {
-        ::adInjectorFingerprint.hookMethod(XC_MethodReplacement.returnConstant(false))
-    }
+    ::adInjectorFingerprint.hookMethod(XC_MethodReplacement.returnConstant(false))
 }

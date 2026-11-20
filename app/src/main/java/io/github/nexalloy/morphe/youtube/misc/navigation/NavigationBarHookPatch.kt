@@ -50,7 +50,7 @@ val NavigationBarHook = patch(
         InitializeButtonsFingerprint.hookMethod(scopedHook(::pivotBarButtonsCreateDrawableViewFingerprint.member) {
             after {
                 (it.result as? View)?.let { view ->
-                    NavigationBar.navigationImageResourceTabLoaded(view)
+                    NavigationBar.navigationTabLoaded(view)
                 }
             }
         })

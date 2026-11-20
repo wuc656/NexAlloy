@@ -12,25 +12,25 @@
 ### Preserved Fork Customizations & Hook Targets
 - **Facebook** ([SysAdminDoc/Hushfacebook](https://github.com/SysAdminDoc/Hushfacebook))
   - Feed: Intercept `FeedUnitCollectionManager.addNewEdgeToCollection` to drop `SPONSORED` / `PROMOTION` categories; hook `EdgeSwapRun` to skip ad swaps; suppress Meta AI questions and AI related posts (`InlineRelatedPostsPlugin`).
-  - Stories, Reels & Marketplace: Filter ad story buckets, hold Reels & feed Reels row ad pools (`FbShortsSponsoredPool`) to null, and filter sponsored listings/PDP.
-  - Telemetry & Prefetch: Block background ad prefetch workers and Audience Network SDK initialization.
-  - UI & Sharing: Long-press Facebook logo to open `FacebookSettingsDialog`; strip tracking parameters (`fbclid`) from shared URLs.
+  - Stories, Reels, Marketplace, Games & Watch History: Filter ad story buckets (including FB 588+ `List` helper callers) and suggested story buckets (`is_story_bucket_suggested` / `story_bucket_type`), stop `DirectSeenMutation` story seen reports (<=585 & 586+), block `INTERESTED_OR_NOT_INTERESTED_BUMPER` reel prompts, hold Reels/feed Reels ad pools (`FbShortsSponsoredPool`) & `ProfileReelsAsyncAdsQuery` sends, block `SfdVideoPositionWatchedMutation` / view-time logging, rewrite `shouldSkipAdRequest` / hold ads-only Marketplace queries via `ReadableMap` proxy, and reject `QuicksilverAndroid` Instant Games ad requests.
+  - Telemetry & Prefetch: Block background ad prefetch workers, promotional notifications (respecting `KEY_BLOCK_PROMO_NOTIFS`), and Audience Network SDK initialization.
+  - UI & Sharing: Long-press Facebook logo to open `FacebookSettingsDialog`; hook concrete `FbSharedPreferences` getters for bottom tab bar override; strip tracking parameters (`fbclid`) and bypass `/share/` wrapped-URL cache in `LinkSharingController`.
   - Note: `Hide post prompts` was intentionally and permanently removed. Do not restore.
 - **Threads** ([SysAdminDoc/HushThreads](https://github.com/SysAdminDoc/HushThreads))
   - Hook `adInjectorFingerprint` to return `false`.
-  - Purge injected sponsored threads (`Media.isAd` via `InjectedAdCheckFingerprint` and `AD_UNIT_TYPES` enum filter) from `BarcelonaFeedCache` page merges, and suppress permalink ads in opened post replies.
+  - Purge injected sponsored threads (`Media.isAd` via `InjectedAdCheckFingerprint` and `AD_UNIT_TYPES` enum filter) across `BarcelonaFeedCache` page merges, For You suspend list/single-item writes, and standalone `ForYouFeedLocalDataSource` ad inserts; suppress permalink ads in opened post replies.
 - **Instagram** ([SysAdminDoc/HushGram](https://github.com/SysAdminDoc/HushGram))
-  - Hook `adInjectorFingerprint` to return `false` and filter server-embedded `"injected"` sponsored posts & ad pivots (`INTENT_AWARE_AD_PIVOT`, `STAND_ALONE_MULTI_AD_PIVOT`) in `feedItemParserFingerprint`.
+  - Hook `adInjectorFingerprint` to return `false`, filter server-embedded `"injected"` sponsored posts (excluding String tracking-token getter on 454+) & ad pivots (`INTENT_AWARE_AD_PIVOT`, `STAND_ALONE_MULTI_AD_PIVOT`) in `feedItemParserFingerprint`, and suppress `enable_comment_ads` comment-sheet ad flags.
 - **Telegram** ([SysAdminDoc/HushTelegram](https://github.com/SysAdminDoc/HushTelegram))
-  - Channel Ads: Hook `GetSponsoredMessagesFingerprint` to return `null`.
+  - Channel & Proxy Ads: Hook `GetSponsoredMessagesFingerprint` to return `null`; hide cached sponsored proxy channels (`promoDialog` / `isLeftPromoChannel`) in `MessagesController.sortDialogs` and `DialogFilter.includesDialog`.
   - Video Player Ads: Hook `VideoAdsLoadFingerprint` (`newInstance(GET_SPONSORED_MESSAGES)`) with `XC_MethodReplacement.DO_NOTHING`.
   - Search Ads: Intercept `ConnectionsManager.sendRequest` to drop `TL_contacts_getSponsoredPeers` payloads without breaking normal global search.
 - **Twitch** ([hoomans-morphe-patches](https://github.com/arandomhooman/hoomans-morphe-patches) & [De-Vanced](https://github.com/RookieEnough/De-Vanced))
-  - Live Stream Ads: Intercept `LiveManifestUrlBuilderFingerprint` (`usher.ttvnw.net`) to route streams through ad-free proxy `https://lb-as.cdn-perfprod.com/live/<channel>`.
-  - Display Ads: Intercept `DisplayAdResponseParserFingerprint` and return `NoAd` singleton.
+  - Live Stream Ads: Intercept `LiveManifestUrlBuilderFingerprint` (`usher.ttvnw.net`) to route streams through ad-free proxy `https://lb-as.cdn-perfprod.com/live/<channel>` using URI channel extraction with field fallback.
+  - Display Ads: Intercept `DisplayAdResponseParserFingerprint` and return the `NoAd` singleton extracted directly from the parser's bytecode.
   - Video & Audio Ads: Intercept `EligibilityCheckCompleted` to force `shouldRequestAd = false`; silence `sendAudioAdsContext` presenter actions.
 - **Messenger** ([SysAdminDoc/HushMessenger](https://github.com/SysAdminDoc/HushMessenger))
-  - Intercept `ItemListProcessorInterfaceSpec.processItems` returning `ImmutableList` to filter out `InboxAdsItem`, and silence `AdEntryEventFingerprint` (`ad_id`, `page_id`).
+  - Filter `InboxAdsItem` in `ItemListProcessorInterfaceSpec.processItems` (`Lcom/google/common/collect/ImmutableList;` descriptor), silence legacy `LoadInboxAdsFingerprint`, `AdEntryEventFingerprint` (`ad_id`, `page_id`, `isStatic = true`), `InboxCustomizedImpressionTracker` (`inbox2_vr`), and `LatStatusJob` (`AttributionIdUpdate`) attribution uploads.
 
 ## Architecture & File Structure
 - `app/src/main/java/io/github/nexalloy/`:

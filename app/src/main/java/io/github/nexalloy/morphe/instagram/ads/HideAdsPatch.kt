@@ -1,9 +1,12 @@
 package io.github.nexalloy.morphe.instagram.ads
 
+import android.os.Bundle
 import app.morphe.extension.shared.Logger
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XC_MethodReplacement
+import de.robv.android.xposed.XposedBridge
 import io.github.nexalloy.patch
+import io.github.nexalloy.scopedHook
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -12,7 +15,7 @@ private val AD_PIVOT_UNITS = setOf("INTENT_AWARE_AD_PIVOT", "STAND_ALONE_MULTI_A
 
 val HideInstagramAds = patch(
     name = "HushGram Hide ads",
-    description = "Hides sponsored posts, reels and stories without leaving gaps (HushGram).",
+    description = "Hides sponsored posts, reels, stories, and comment ads without leaving gaps (HushGram).",
 ) {
     // 1. Guard client-side ad injector
     runCatching {
@@ -65,5 +68,37 @@ val HideInstagramAds = patch(
                 }
             }
         })
+    }
+
+    // 3a. Suppress comment sheet ad flag on comments settings initialization
+    runCatching {
+        val flagField = ::commentAdsFlagField.field.apply { isAccessible = true }
+        val settingsClass = ::commentAdsFlagField.declaredClass
+        XposedBridge.hookAllConstructors(settingsClass, object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                runCatching { flagField.setBoolean(param.thisObject, false) }
+            }
+        })
+    }
+
+    // 3b. Suppress "enable_comment_ads" when serialized into Bundle
+    runCatching {
+        val putBooleanMethod = Bundle::class.java.getMethod(
+            "putBoolean",
+            String::class.java,
+            Boolean::class.javaPrimitiveType
+        )
+        ::commentAdsBundleWriters.dexMethodList.forEach { writer ->
+            writer.hookMethod(
+                scopedHook(putBooleanMethod) {
+                    before { param ->
+                        if (param.args.getOrNull(0) == "enable_comment_ads") {
+                            param.args[1] = false
+                            Logger.printDebug { "HushGram: Forced enable_comment_ads = false in Bundle" }
+                        }
+                    }
+                }
+            )
+        }
     }
 }

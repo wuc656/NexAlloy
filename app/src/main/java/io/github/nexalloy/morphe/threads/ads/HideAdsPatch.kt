@@ -24,7 +24,7 @@ private val AD_UNIT_TYPES = setOf(
 
 val HideThreadsAds = patch(
     name = "HushThreads Hide ads",
-    description = "Removes sponsored and ad posts from Threads feed before they are cached or rendered (HushThreads).",
+    description = "Removes sponsored and ad posts from Threads feed (including For You cache writes, single-ad inserts, and permalink replies) before they are cached or rendered (HushThreads).",
     use = true
 ) {
     // 1. Guard client-side ad injector
@@ -49,7 +49,7 @@ val HideThreadsAds = patch(
         if (resolved) return
         resolved = true
         try {
-            mediaClass = classLoader.loadClass("com.instagram.feed.media.Media")
+            mediaClass = classLoader.loadClass(MEDIA_CLASS)
             if (cachedIsAdMethod == null) {
                 for (m in mediaClass!!.declaredMethods) {
                     if (m.returnType == java.lang.Boolean.TYPE && m.parameterTypes.isEmpty() && !Modifier.isStatic(m.modifiers)) {
@@ -110,28 +110,102 @@ val HideThreadsAds = patch(
         return media != null && isAd(media)
     }
 
+    val filterListHook = object : XC_MethodHook() {
+        @Suppress("UNCHECKED_CAST")
+        override fun beforeHookedMethod(param: MethodHookParam) {
+            initMethods()
+            val listIndex = param.args.indexOfFirst { it is List<*> }
+            if (listIndex == -1) return
+            val list = param.args[listIndex] as? List<Any?> ?: return
+            if (list.isEmpty()) return
+
+            if (list.none { isAdItem(it) }) return
+
+            val beforeSize = list.size
+            val filtered = list.filterNot { isAdItem(it) }
+            param.args[listIndex] = filtered
+            Logger.printDebug { "HushThreads: Filtered ${beforeSize - filtered.size} ad posts from feed cache list" }
+        }
+    }
+
+    // 2. Filter fetched page merge
     runCatching {
-        ::feedPageMergeMethod.hookMethod(object : XC_MethodHook() {
-            @Suppress("UNCHECKED_CAST")
-            override fun beforeHookedMethod(param: MethodHookParam) {
-                initMethods()
-                val listIndex = param.args.indexOfFirst { it is List<*> }
-                if (listIndex == -1) return
-                val list = param.args[listIndex] as? List<Any?> ?: return
-                if (list.isEmpty()) return
-
-                if (list.none { isAdItem(it) }) return
-
-                val beforeSize = list.size
-                val filtered = list.filterNot { isAdItem(it) }
-                param.args[listIndex] = filtered
-                Logger.printDebug { "HushThreads: Filtered ${beforeSize - filtered.size} ad posts from feed page" }
-            }
-        })
+        ::feedPageMergeMethod.hookMethod(filterListHook)
     }.onFailure {
         Logger.printDebug { "HushThreads: Failed to hook feedPageMergeMethod: ${it.message}" }
     }
 
+    // 3. Filter additional For You suspend list writes (refresh, paging, append, rebuild)
+    runCatching {
+        ::forYouListWriteMethods.dexMethodList.forEach { method ->
+            method.hookMethod(filterListHook)
+        }
+    }.onFailure {
+        Logger.printDebug { "HushThreads: Failed to hook forYouListWriteMethods: ${it.message}" }
+    }
+
+    // 4. Block single-item writes in BarcelonaFeedCache when the item is an ad
+    runCatching {
+        val doneUnit = runCatching { ::forYouDoneUnitField.field.apply { isAccessible = true }.get(null) }.getOrNull()
+        if (doneUnit != null) {
+            val itemWrites = ::forYouItemWriteMethods.dexMethodList
+            itemWrites.forEach { method ->
+                method.hookMethod(object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        initMethods()
+                        val item = param.args.firstOrNull() ?: return
+                        if (isAdItem(item)) {
+                            param.result = doneUnit
+                            Logger.printDebug { "HushThreads: Blocked single ad item write to feed cache" }
+                        }
+                    }
+                })
+            }
+        }
+    }.onFailure {
+        Logger.printDebug { "HushThreads: Failed to hook forYouItemWriteMethods: ${it.message}" }
+    }
+
+    // 5. Block For You standalone single-ad insert into an existing cached page
+    runCatching {
+        val noPageCode = runCatching { ::forYouAdInsertNoPageField.field.apply { isAccessible = true }.get(null) }.getOrNull()
+        if (noPageCode != null) {
+            var cachedInsertItemField: Field? = null
+            var insertFieldResolved = false
+            ::forYouAdInsertMethod.hookMethod(object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    initMethods()
+                    var hit = param.args.any { arg -> arg != null && isAdItem(arg) }
+                    if (!hit) {
+                        val holder = param.args.firstOrNull { it != null && !it.javaClass.isPrimitive && it !is Number && it !is String }
+                        if (holder != null) {
+                            if (!insertFieldResolved) {
+                                insertFieldResolved = true
+                                cachedInsertItemField = holder.javaClass.declaredFields.firstOrNull { f ->
+                                    if (Modifier.isStatic(f.modifiers) || f.type.isPrimitive || f.type == String::class.java) return@firstOrNull false
+                                    f.isAccessible = true
+                                    val candidate = runCatching { f.get(holder) }.getOrNull() ?: return@firstOrNull false
+                                    isAdItem(candidate) || getMediaFromItem(candidate) != null
+                                }?.apply { isAccessible = true }
+                            }
+                            val item = runCatching { cachedInsertItemField?.get(holder) }.getOrNull()
+                            if (item != null && isAdItem(item)) {
+                                hit = true
+                            }
+                        }
+                    }
+                    if (hit) {
+                        param.result = noPageCode
+                        Logger.printDebug { "HushThreads: Blocked standalone For You ad insert" }
+                    }
+                }
+            })
+        }
+    }.onFailure {
+        Logger.printDebug { "HushThreads: Failed to hook forYouAdInsertMethod: ${it.message}" }
+    }
+
+    // 6. Clear permalink ads from opened post replies
     runCatching {
         ::permalinkAdResultConstructor.hookMethod(object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {

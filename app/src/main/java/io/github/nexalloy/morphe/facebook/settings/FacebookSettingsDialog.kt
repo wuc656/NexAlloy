@@ -77,12 +77,6 @@ object FacebookSettingsDialog {
                     defaultValue = false
                 ),
                 SettingItem(
-                    FacebookSettings.KEY_KEEP_POST_DATES,
-                    "Keep post dates",
-                    "Keeps the one line with the date instead of rotating details.",
-                    defaultValue = false
-                ),
-                SettingItem(
                     FacebookSettings.KEY_HIDE_FEEDS_HEADER,
                     "Hide the Feeds header",
                     "Removes the title row and filter pills (All, Favorites, Friends) from Feeds tab.",
@@ -128,18 +122,6 @@ object FacebookSettingsDialog {
                     "Hide sponsored reels",
                     "Ads inside Reels, starting with the next batch Facebook loads.",
                     defaultValue = true
-                ),
-                SettingItem(
-                    FacebookSettings.KEY_HOLD_REEL_FOR_2X,
-                    "Hold a reel for 2x",
-                    "Holding a reel plays it at double speed until you let go.",
-                    defaultValue = false
-                ),
-                SettingItem(
-                    FacebookSettings.KEY_DEFAULT_PLAYBACK_QUALITY,
-                    "Default playback quality",
-                    "Plays videos, reels and video stories at the highest quality available.",
-                    defaultValue = false
                 ),
                 SettingItem(
                     FacebookSettings.KEY_HIDE_REEL_PROMPTS,
@@ -226,6 +208,12 @@ object FacebookSettingsDialog {
                     "Disable Audience Network",
                     "Facebook doesn't serve ads to other apps on this phone.",
                     defaultValue = false
+                ),
+                SettingItem(
+                    FacebookSettings.KEY_BLOCK_GAME_ADS,
+                    "Block Instant Games ads",
+                    "Blocks interstitial, rewarded, and banner ad requests inside Instant Games.",
+                    defaultValue = true
                 )
             )
         )
