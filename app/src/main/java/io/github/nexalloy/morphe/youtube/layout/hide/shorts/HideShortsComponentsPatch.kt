@@ -4,6 +4,7 @@ import android.view.View
 import app.morphe.extension.shared.ResourceUtils.getIdIdentifier
 import app.morphe.extension.youtube.patches.components.ShortsFilter
 import de.robv.android.xposed.XC_MethodReplacement
+import io.github.nexalloy.hookMethod
 import io.github.nexalloy.morphe.resourceMappings
 import io.github.nexalloy.morphe.shared.misc.litho.filter.addLithoFilter
 import io.github.nexalloy.morphe.shared.misc.settings.preference.PreferenceCategory
@@ -15,7 +16,6 @@ import io.github.nexalloy.morphe.youtube.misc.litho.filter.LithoFilter
 import io.github.nexalloy.morphe.youtube.misc.litho.observer.LayoutReloadObserver
 import io.github.nexalloy.morphe.youtube.misc.playservice.is_20_51_or_greater
 import io.github.nexalloy.morphe.youtube.misc.settings.PreferenceScreen
-import io.github.nexalloy.hookMethod
 import io.github.nexalloy.morphe.youtube.shared.filterPushNotification
 import io.github.nexalloy.morphe.youtube.shared.pushNotificationHookPatch
 import io.github.nexalloy.patch
@@ -54,20 +54,20 @@ val HideShortsComponents = patch(
         //SwitchPreference("morphe_hide_shorts_like_fountain"),
         SwitchPreference("morphe_disable_shorts_double_tap_to_like"),
         SwitchPreference("morphe_hide_shorts_like_button"),
-        SwitchPreference("morphe_hide_shorts_comments_button"),
-        SwitchPreference("morphe_hide_shorts_save_button"),
-        SwitchPreference("morphe_hide_shorts_share_button"),
-        SwitchPreference("morphe_hide_shorts_remix_button"),
+        SwitchPreference("morphe_hide_shorts_comments_button", titleKey = "morphe_hide_comments_button_title"),
+        SwitchPreference("morphe_hide_shorts_save_button", titleKey = "morphe_hide_save_button_title"),
+        SwitchPreference("morphe_hide_shorts_share_button", titleKey = "morphe_hide_share_button_title"),
+        SwitchPreference("morphe_hide_shorts_remix_button", titleKey = "morphe_hide_remix_button_title"),
 //                SwitchPreference("morphe_hide_shorts_sound_button"),
 
         // Upper and middle area of the player.
-        SwitchPreference("morphe_hide_shorts_join_button"),
-        SwitchPreference("morphe_hide_shorts_subscribe_button"),
+        SwitchPreference("morphe_hide_shorts_join_button", titleKey = "morphe_hide_join_button_title"),
+        SwitchPreference("morphe_hide_shorts_subscribe_button", titleKey = "morphe_hide_subscribe_button_title"),
         SwitchPreference("morphe_hide_shorts_gesture_hints"),
         SwitchPreference("morphe_hide_shorts_paused_overlay_buttons"),
 
         // Suggested actions.
-        SwitchPreference("morphe_hide_shorts_preview_comment"),
+        SwitchPreference("morphe_hide_shorts_preview_comment", titleKey = "morphe_hide_comments_preview_comment_title"),
         SwitchPreference("morphe_hide_shorts_save_sound_button"),
         SwitchPreference("morphe_hide_shorts_use_sound_button"),
         SwitchPreference("morphe_hide_shorts_use_template_button"),
@@ -77,7 +77,7 @@ val HideShortsComponents = patch(
         SwitchPreference("morphe_hide_shorts_hashtag_button"),
         SwitchPreference("morphe_hide_shorts_live_preview"),
         SwitchPreference("morphe_hide_shorts_new_posts_button"),
-        SwitchPreference("morphe_hide_shorts_shop_button"),
+        SwitchPreference("morphe_hide_shorts_shop_button", titleKey = "morphe_hide_shop_button_title"),
         SwitchPreference("morphe_hide_shorts_tagged_products"),
         SwitchPreference("morphe_hide_shorts_search_suggestions"),
         SwitchPreference("morphe_hide_shorts_super_thanks_button"),
@@ -86,10 +86,10 @@ val HideShortsComponents = patch(
         SwitchPreference("morphe_hide_shorts_ai_button"),
         SwitchPreference("morphe_hide_shorts_auto_dubbed_label"),
         SwitchPreference("morphe_hide_shorts_location_label"),
-        SwitchPreference("morphe_hide_shorts_channel_bar"),
+        SwitchPreference("morphe_hide_shorts_channel_bar", titleKey = "morphe_hide_channel_bar_title"),
         SwitchPreference("morphe_hide_shorts_info_panel"),
         SwitchPreference("morphe_hide_shorts_full_video_link_label"),
-        SwitchPreference("morphe_hide_shorts_video_title"),
+        SwitchPreference("morphe_hide_shorts_video_title", titleKey = "morphe_hide_video_title_title"),
         SwitchPreference("morphe_hide_shorts_sound_metadata_label"),
 //                SwitchPreference("morphe_hide_shorts_navigation_bar"),
     )

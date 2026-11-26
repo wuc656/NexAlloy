@@ -9,7 +9,6 @@ import java.util.BitSet
 import org.luckypray.dexkit.DexAccessFlags
 import org.luckypray.dexkit.DexKitBridge
 import org.luckypray.dexkit.query.enums.MatchType
-import org.luckypray.dexkit.query.matchers.ClassMatcher
 import org.luckypray.dexkit.query.matchers.MethodMatcher
 import org.luckypray.dexkit.query.matchers.base.OpCodesMatcher
 import org.luckypray.dexkit.result.InstructionData
@@ -108,129 +107,28 @@ private fun findLongestOpcodeSequence(filters: List<InstructionFilter>): List<In
         ?: emptyList()
 }
 
-class FingerprintDsl(init: FingerprintDsl.() -> Unit) {
-    private var name: String? = null
-    private var definingClass: String? = null
-    private var accessFlags: List<AccessFlags>? = null
-    private var returnType: String? = null
-    private var parameters: List<String>? = null
-    private var strings: Array<out String>? = null
-    private var classFinder: FindClassFunc? = null
-    private var classMatcherBlock: (ClassMatcher.() -> Unit)? = null
-    private val methodMatcherBlocks = mutableListOf<MethodMatcher.() -> Unit>()
-
-    init {
-        init(this)
-    }
-
-    fun name(name: String) {
-        this.name = name
-    }
-
-    fun definingClass(descriptor: String) {
-        this.definingClass = descriptor
-    }
-
-    fun strings(vararg strings: String) {
-        this.strings = strings
-    }
-
-    fun opcodes(vararg opcodes: Opcode): OpCodesMatcher {
-        val matcher = OpCodesMatcher(opcodes.map { it.opCode })
-        methodMatcherBlocks += { opCodes(matcher) }
-        return matcher
-    }
-
-    fun accessFlags(vararg accessFlags: AccessFlags) {
-        this.accessFlags = accessFlags.toList()
-    }
-
-    fun parameters(vararg parameters: String) {
-        this.parameters = parameters.toList()
-    }
-
-    fun returns(returnType: String) {
-        this.returnType = returnType
-    }
-
-    fun literal(literalSupplier: () -> Number) {
-        methodMatcherBlocks += { literal(literalSupplier) }
-    }
-
-    fun classFingerprint(findMethodFunc: FindMethodFunc) {
-        classFinder = { findMethodFunc().declaredClass!! }
-    }
-
-    /**
-     * Direct access to DexKit MethodMatcher for custom queries.
-     */
-    fun methodMatcher(block: MethodMatcher.() -> Unit) {
-        methodMatcherBlocks += block
-    }
-
-    /**
-     * DexKit ClassMatcher for chain-matching (find class first, then find method within).
-     */
-    fun classMatcher(block: ClassMatcher.() -> Unit) {
-        classMatcherBlock = block
-    }
-
-    fun build(): Fingerprint {
-        methodMatcherBlocks += {
-            strings?.let { strings(*it) }
-            // Keep the legacy DSL's contains-flags query semantics.
-            this@FingerprintDsl.accessFlags?.let { accessFlags(*it.toTypedArray()) }
-        }
-
-        val fp = Fingerprint(
-            definingClass = definingClass,
-            name = name,
-            returnType = returnType,
-            parameters = parameters,
-        )
-
-        // Apply classFinder or classMatcher
-        if (classFinder != null) {
-            fp.legacyClassFinder = classFinder
-        }
-        if (classMatcherBlock != null) {
-            fp.classMatcherBlock = classMatcherBlock
-        }
-
-        // Apply extra methodMatcher blocks
-        if (methodMatcherBlocks.isNotEmpty()) {
-            fp.extraMethodMatcherBlocks = methodMatcherBlocks.toList()
-        }
-
-        return fp
-    }
-}
-
 /**
- * DexKit Query is not equivalent to instruction matching. <br>
- * This annotation forces the query results to be filtered again using instruction matching.
+ * Applies instruction matching when multiple candidates remain after signature filtering.
+ * A single candidate resolves directly.
  * @see Fingerprint.run
- * */
+ */
 annotation class StrictQuery
 
 open class Fingerprint private constructor(
     val classFingerprint: Fingerprint? = null,
-    private val definingClass: String? = null,
-    name: String? = null,
-    accessFlags: List<AccessFlags>? = null,
-    private val returnType: String? = null,
-    private val parameters: List<String>? = null,
+    private val declaredDefiningClass: (DexKitBridge.() -> CharSequence)? = null,
+    private val declaredSuperclass: (DexKitBridge.() -> CharSequence)? = null,
+    private val declaredInterfaces: (DexKitBridge.() -> List<CharSequence>)? = null,
+    private val name: String? = null,
+    private val accessFlags: List<AccessFlags>? = null,
+    private val isStatic: Boolean? = null,
+    private val declaredReturnType: (DexKitBridge.() -> CharSequence)? = null,
+    private val declaredParameters: (DexKitBridge.() -> List<CharSequence>)? = null,
     val filters: List<InstructionFilter>? = null,
     val stringFilters: List<StringFilter>? = null,
     val custom: (MethodMatcher.() -> Unit)? = null,
-    private val isStatic: Boolean? = null,
-    private val superclass: String? = null,
-    private val interfaces: List<String>? = null,
 ) {
-    internal var legacyClassFinder: FindClassFunc? = null
-    internal var classMatcherBlock: (ClassMatcher.() -> Unit)? = null
-    internal var extraMethodMatcherBlocks: List<MethodMatcher.() -> Unit>? = null
-
+    context(bridge: DexKitBridge)
     val strings: List<String>?
         get() = stringFilters?.map { it.stringValue }
 
@@ -238,43 +136,53 @@ open class Fingerprint private constructor(
         require(accessFlags == null || isStatic == null) {
             "Cannot specify both accessFlags and isStatic"
         }
-        require(definingClass == null || classFingerprint == null) {
+        require(declaredDefiningClass == null || classFingerprint == null) {
             "Cannot specify both definingClass and classFingerprint"
         }
-        require(interfaces == null || interfaces.isNotEmpty()) { "Interfaces cannot be empty" }
         require(filters == null || filters.isNotEmpty()) { "Filters cannot be empty" }
         stringFilters?.forEach {
             require(it.location is InstructionLocation.MatchAfterAnywhere) {
                 "Strings match in any order and cannot declare an instruction location"
             }
         }
-        if (custom != null)
-            extraMethodMatcherBlocks = listOf(custom)
     }
 
-    /**
-     * Set class matcher for chain matching (find class first, then method within).
-     * Can be called from object init blocks.
-     */
-    protected fun classMatcher(block: ClassMatcher.() -> Unit) {
-        classMatcherBlock = block
+    private class Values(
+        val definingClass: String?,
+        val superclass: String?,
+        val interfaces: List<String>?,
+        val returnType: String?,
+        val parameters: List<String>?,
+    ) {
+        init {
+            require(interfaces == null || interfaces.isNotEmpty()) { "Interfaces cannot be empty" }
+        }
     }
 
-    private val methodMatcherBuilder = fun MethodMatcher.(): Unit {
-        if (definingClass != null || superclass != null || interfaces != null) {
+    private fun evaluateValues(bridge: DexKitBridge) = Values(
+        declaredDefiningClass?.invoke(bridge)?.toString(),
+        declaredSuperclass?.invoke(bridge)?.toString(),
+        declaredInterfaces?.invoke(bridge)?.map { it.toString() },
+        declaredReturnType?.invoke(bridge)?.toString(),
+        declaredParameters?.invoke(bridge)?.map { it.toString() },
+    )
+
+    context(bridge: DexKitBridge)
+    private fun buildMethodMatcher(values: Values): MethodMatcher = MethodMatcher().apply {
+        if (values.definingClass != null || values.superclass != null || values.interfaces != null) {
             declaredClass {
-                definingClass?.let(::getTypeNameCompat)?.let { className(it) }
-                superclass?.let(::getTypeNameCompat)?.let { superClass(it) }
-                interfaces?.mapNotNull(::getTypeNameCompat)?.forEach { addInterface(it) }
+                values.definingClass?.let(::getTypeNameCompat)?.let { className(it) }
+                values.superclass?.let(::getTypeNameCompat)?.let { superClass(it) }
+                values.interfaces?.mapNotNull(::getTypeNameCompat)?.forEach { addInterface(it) }
             }
         }
         if (isStatic == true) accessFlags(DexAccessFlags.STATIC)
-        if (name != null) name(name)
-        if (accessFlags != null) {
-            accessFlags(accessFlags.fold(0) { flags, flag -> flags or flag.modifier }, MatchType.Equals)
+        this@Fingerprint.name?.let { name(it) }
+        this@Fingerprint.accessFlags?.let { flags ->
+            accessFlags(flags.fold(0) { mask, flag -> mask or flag.modifier }, MatchType.Equals)
         }
-        this@Fingerprint.returnType?.let { returns(it) }
-        if (parameters != null) parameters(*parameters.toTypedArray())
+        values.returnType?.let { returns(it) }
+        values.parameters?.let { parameters(*it.toTypedArray()) }
         stringFilters?.forEach { it.addQuery() }
         filters?.forEach { filter ->
             filter.addQuery()
@@ -291,11 +199,12 @@ open class Fingerprint private constructor(
                 opCodes(opcodes)
         }
 
-        extraMethodMatcherBlocks?.forEach { block -> block() }
+        custom?.invoke(this)
     }
 
+    context(dexkit: DexKitBridge)
     fun buildMethodMatcher(): MethodMatcher =
-        MethodMatcher().apply(methodMatcherBuilder)
+        buildMethodMatcher(evaluateValues(dexkit))
 
     /**
      * A fingerprint for a method. A fingerprint is a partial description of a method,
@@ -345,17 +254,17 @@ open class Fingerprint private constructor(
         custom: (MethodMatcher.() -> Unit)? = null,
     ) : this(
         classFingerprint,
-        definingClass,
+        constantOrNull(definingClass),
+        constantOrNull(superclass),
+        constantInterfacesOrNull(interfaces),
         name,
         accessFlags,
-        returnType,
-        parameters,
+        isStatic,
+        constantOrNull(returnType),
+        constantOrNull(parameters),
         filters,
         rawStringFilters(strings),
         custom,
-        isStatic,
-        superclass,
-        interfaces,
     )
 
     /**
@@ -411,20 +320,647 @@ open class Fingerprint private constructor(
         custom: (MethodMatcher.() -> Unit)? = null,
     ) : this(
         classFingerprint,
-        definingClass,
+        constantOrNull(definingClass),
+        constantOrNull(superclass),
+        constantInterfacesOrNull(interfaces),
         name,
         accessFlags,
-        returnType,
-        parameters,
+        isStatic,
+        constantOrNull(returnType),
+        constantOrNull(parameters),
         filters,
         strings.toList(),
         custom,
-        isStatic,
-        superclass,
-        interfaces,
+    )
+
+    /**
+     * Evaluates [definingClass] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * A dynamic [definingClass] cannot be combined with [classFingerprint].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: DexKitBridge.() -> CharSequence,
+        superclass: String? = null,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = definingClass,
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [definingClass] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * A dynamic [definingClass] cannot be combined with [classFingerprint].
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: DexKitBridge.() -> CharSequence,
+        superclass: String? = null,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = definingClass,
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [superclass] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: DexKitBridge.() -> CharSequence,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = superclass,
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [superclass] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: DexKitBridge.() -> CharSequence,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = superclass,
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [interfaces] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: String? = null,
+        interfaces: DexKitBridge.() -> List<CharSequence>,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [interfaces] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: String? = null,
+        interfaces: DexKitBridge.() -> List<CharSequence>,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [returnType] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: String? = null,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: DexKitBridge.() -> CharSequence,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [returnType] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: String? = null,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: DexKitBridge.() -> CharSequence,
+        parameters: List<String>? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = constantOrNull(parameters),
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: String? = null,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: DexKitBridge.() -> List<CharSequence>,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        definingClass: String? = null,
+        superclass: String? = null,
+        interfaces: List<String>? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: String? = null,
+        parameters: DexKitBridge.() -> List<CharSequence>,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = constantOrNull(definingClass),
+        declaredSuperclass = constantOrNull(superclass),
+        declaredInterfaces = constantInterfacesOrNull(interfaces),
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = constantOrNull(returnType),
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [definingClass], [superclass], [interfaces], [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     * A dynamic [definingClass] replaces [classFingerprint].
+     */
+    constructor(
+        definingClass: DexKitBridge.() -> CharSequence,
+        superclass: (DexKitBridge.() -> CharSequence)? = null,
+        interfaces: (DexKitBridge.() -> List<CharSequence>)? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: (DexKitBridge.() -> CharSequence)? = null,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = null,
+        declaredDefiningClass = definingClass,
+        declaredSuperclass = superclass,
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [definingClass], [superclass], [interfaces], [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     * A dynamic [definingClass] replaces [classFingerprint].
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        definingClass: DexKitBridge.() -> CharSequence,
+        superclass: (DexKitBridge.() -> CharSequence)? = null,
+        interfaces: (DexKitBridge.() -> List<CharSequence>)? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: (DexKitBridge.() -> CharSequence)? = null,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = null,
+        declaredDefiningClass = definingClass,
+        declaredSuperclass = superclass,
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [superclass], [interfaces], [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        superclass: DexKitBridge.() -> CharSequence,
+        interfaces: (DexKitBridge.() -> List<CharSequence>)? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: (DexKitBridge.() -> CharSequence)? = null,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = null,
+        declaredSuperclass = superclass,
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [superclass], [interfaces], [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        superclass: DexKitBridge.() -> CharSequence,
+        interfaces: (DexKitBridge.() -> List<CharSequence>)? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: (DexKitBridge.() -> CharSequence)? = null,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = null,
+        declaredSuperclass = superclass,
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [interfaces], [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        interfaces: DexKitBridge.() -> List<CharSequence>,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: (DexKitBridge.() -> CharSequence)? = null,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = null,
+        declaredSuperclass = null,
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [interfaces], [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        interfaces: DexKitBridge.() -> List<CharSequence>,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: (DexKitBridge.() -> CharSequence)? = null,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = null,
+        declaredSuperclass = null,
+        declaredInterfaces = interfaces,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: DexKitBridge.() -> CharSequence,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: List<String>? = null,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = null,
+        declaredSuperclass = null,
+        declaredInterfaces = null,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = rawStringFilters(strings),
+        custom = custom,
+    )
+
+    /**
+     * Evaluates [returnType], [parameters] using the current [DexKitBridge] when queried.
+     * Suppliers run once per uncached query, so values are never shared across bridges.
+     * Type descriptors follow [StringComparisonType] semantics. Other arguments follow
+     * the constructor with fixed types.
+     * All supplied types from the first dynamic type onward must use lambdas.
+     * [strings] contains unordered filters without an [InstructionLocation].
+     */
+    constructor(
+        classFingerprint: Fingerprint? = null,
+        name: String? = null,
+        accessFlags: List<AccessFlags>? = null,
+        isStatic: Boolean? = null,
+        returnType: DexKitBridge.() -> CharSequence,
+        parameters: (DexKitBridge.() -> List<CharSequence>)? = null,
+        filters: List<InstructionFilter>? = null,
+        strings: Collection<StringFilter>,
+        custom: (MethodMatcher.() -> Unit)? = null,
+    ) : this(
+        classFingerprint = classFingerprint,
+        declaredDefiningClass = null,
+        declaredSuperclass = null,
+        declaredInterfaces = null,
+        name = name,
+        accessFlags = accessFlags,
+        isStatic = isStatic,
+        declaredReturnType = returnType,
+        declaredParameters = parameters,
+        filters = filters,
+        stringFilters = strings.toList(),
+        custom = custom,
     )
 
     companion object {
+        private fun <T> constantOrNull(value: T?): (DexKitBridge.() -> T)? =
+            value?.let { { it } }
+
+        private fun constantInterfacesOrNull(value: List<String>?): (DexKitBridge.() -> List<String>)? {
+            require(value == null || value.isNotEmpty()) { "Interfaces cannot be empty" }
+            return constantOrNull(value)
+        }
+
         private fun rawStringFilters(strings: List<String>?) = strings?.map { string(it) }
     }
 
@@ -436,8 +972,7 @@ open class Fingerprint private constructor(
     /**
      * Finds a unique method result using DexKit query.
      *
-     * Strict queries apply instruction matching before resolving chained fingerprints
-     * and checking the candidate count.
+     * Strict queries use instruction matching to disambiguate multiple candidates.
      */
     context(dexkit: DexKitBridge)
     fun run(): MethodData {
@@ -451,16 +986,16 @@ open class Fingerprint private constructor(
         return results.single()
     }
 
-    private fun signatureMatches(method: MethodData): Boolean {
+    private fun signatureMatches(method: MethodData, values: Values): Boolean {
         fun matches(type: String?, actual: String?) = type == null ||
                 (actual != null && StringComparisonType.typeDeclarationToComparison(type).compare(actual, type))
         val clazz = method.declaredClass!!
         return (isStatic == null || (method.accessFlags and DexAccessFlags.STATIC != 0) == isStatic) &&
-                matches(definingClass, clazz.descriptor) &&
-                matches(returnType, method.returnType?.descriptor) &&
-                (parameters == null || parametersMatch(method.paramTypes.map { it.descriptor }, parameters)) &&
-                matches(superclass, clazz.superClass?.descriptor) &&
-                (interfaces == null || interfaces.all { type -> clazz.interfaces.any { matches(type, it.descriptor) } })
+                matches(values.definingClass, clazz.descriptor) &&
+                matches(values.returnType, method.returnType?.descriptor) &&
+                (values.parameters == null || parametersMatch(method.paramTypes.map { it.descriptor }, values.parameters)) &&
+                matches(values.superclass, clazz.superClass?.descriptor) &&
+                (values.interfaces == null || values.interfaces.all { type -> clazz.interfaces.any { matches(type, it.descriptor) } })
     }
 
     private val isStrict = this::class.java.annotations.filterIsInstance<StrictQuery>().isNotEmpty()
@@ -471,22 +1006,13 @@ open class Fingerprint private constructor(
 
     context(dexkit: DexKitBridge)
     private fun queryAllUncached(): List<MethodData> {
-        val methodMatcher = buildMethodMatcher()
-        val results: List<MethodData> = if (classMatcherBlock != null) {
-            dexkit.findClass {
-                matcher(ClassMatcher().apply(classMatcherBlock!!))
-            }.findMethod {
-                matcher(methodMatcher)
-            }
-        } else if (classFingerprint != null) {
+        val values = evaluateValues(dexkit)
+        val methodMatcher = buildMethodMatcher(values)
+        val results: List<MethodData> = if (classFingerprint != null) {
             val classes = classFingerprint.queryAll().map { it.declaredClass!! }
 
             dexkit.findMethod {
                 searchInClass(classes)
-                matcher(methodMatcher)
-            }
-        } else if (legacyClassFinder != null) {
-            legacyClassFinder!!.invoke(dexkit).findMethod {
                 matcher(methodMatcher)
             }
         } else {
@@ -495,7 +1021,7 @@ open class Fingerprint private constructor(
             }
         }
 
-        val candidates = results.filter(::signatureMatches)
+        val candidates = results.filter { signatureMatches(it, values) }
         val filteredResults = if (candidates.size > 1 && isStrict) {
             candidates.filter { matchOrNull(it) != null }
         } else {
@@ -515,6 +1041,7 @@ open class Fingerprint private constructor(
     context(dexkit: DexKitBridge)
     fun matchOrNull() = matchOrNull(run())
 
+    context(bridge: DexKitBridge)
     fun matchOrNull(
         method: MethodData
     ): Match? {
@@ -528,6 +1055,7 @@ open class Fingerprint private constructor(
         return Match(method, instructionMatches, stringMatches)
     }
 
+    context(bridge: DexKitBridge)
     private fun matchFilters(
         method: MethodData,
         instructions: List<InstructionData>,
@@ -681,14 +1209,6 @@ class Match constructor(
         return "Match(originalMethod=$method, " +
                 "instructionMatches=$_instructionMatches)"
     }
-}
-
-fun DexKitBridge.fingerprint(block: FingerprintDsl.() -> Unit): MethodData {
-    return FingerprintDsl(block).build().run()
-}
-
-fun fingerprint(block: FingerprintDsl.() -> Unit): FindMethodFunc {
-    return { FingerprintDsl(block).build().run() }
 }
 
 fun findMethodDirect(block: FindMethodFunc) = block
