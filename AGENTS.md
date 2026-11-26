@@ -41,6 +41,7 @@
 - `.github/workflows/`:
   - `release.yml`: Release CI triggered on pushing tags matching `*.*.*` or manual `workflow_dispatch`.
   - `android.yml`: Nightly/branch CI triggered on push to `main` or manual `workflow_dispatch`.
+  - Upstream `release-pr.yml` is intentionally removed (fork uses tag-triggered `release.yml`); delete it again if an upstream merge re-adds it.
 
 ## Build & Test Commands
 ```bash
@@ -61,7 +62,7 @@ git submodule update --init --recursive
    ```bash
    git fetch upstream && git merge upstream/main --no-edit
    ```
-   *Resolve conflicts surgically; keep fork customizations intact.*
+   *Resolve conflicts surgically; keep fork customizations intact. Keep fork `release.yml`; drop upstream `release-pr.yml`.*
 2. **Update Submodules**:
    ```bash
    git submodule update --init --recursive
