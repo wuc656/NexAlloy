@@ -20,9 +20,9 @@
   - Hook `adInjectorFingerprint` to return `false`.
   - Purge injected sponsored threads (`Media.isAd` via `InjectedAdCheckFingerprint` and `AD_UNIT_TYPES` enum filter) across `BarcelonaFeedCache` page merges, For You suspend list/single-item writes, and standalone `ForYouFeedLocalDataSource` ad inserts; suppress permalink ads in opened post replies.
 - **Instagram** ([SysAdminDoc/HushGram](https://github.com/SysAdminDoc/HushGram))
-  - Hook `adInjectorFingerprint` to return `false`, filter server-embedded `"injected"` sponsored posts (excluding String tracking-token getter on 454+) & ad pivots (`INTENT_AWARE_AD_PIVOT`, `STAND_ALONE_MULTI_AD_PIVOT`) in `feedItemParserFingerprint`, and suppress `enable_comment_ads` comment-sheet ad flags.
+  - Hook `adInjectorFingerprint` to return `false`, filter server-embedded `"injected"` sponsored posts (excluding String tracking-token getter on 454+) & ad pivots (`INTENT_AWARE_AD_PIVOT`, `STAND_ALONE_MULTI_AD_PIVOT`) in `feedItemParserFingerprint`, suppress `enable_comment_ads` comment-sheet ad flags, and clear `ad_card_type` / `organic_card_type` comment-sheet cards.
 - **Telegram** ([SysAdminDoc/HushTelegram](https://github.com/SysAdminDoc/HushTelegram))
-  - Channel & Proxy Ads: Hook `GetSponsoredMessagesFingerprint` to return `null`; hide cached sponsored proxy channels (`promoDialog` / `isLeftPromoChannel`) in `MessagesController.sortDialogs` and `DialogFilter.includesDialog`.
+  - Channel & Proxy Ads: Hook `GetSponsoredMessagesFingerprint` to return `null`; hide cached sponsored proxy channels (`promoDialog` / `isLeftPromoChannel`) in `MessagesController.sortDialogs` and `DialogFilter.includesDialog` (13.3.1+ `includesDialog` trailing boolean).
   - Video Player Ads: Hook `VideoAdsLoadFingerprint` (`newInstance(GET_SPONSORED_MESSAGES)`) with `XC_MethodReplacement.DO_NOTHING`.
   - Search Ads: Intercept `ConnectionsManager.sendRequest` to drop `TL_contacts_getSponsoredPeers` payloads without breaking normal global search.
 - **Twitch** ([hoomans-morphe-patches](https://github.com/arandomhooman/hoomans-morphe-patches) & [De-Vanced](https://github.com/RookieEnough/De-Vanced))

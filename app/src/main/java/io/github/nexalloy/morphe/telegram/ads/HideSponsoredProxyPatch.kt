@@ -71,16 +71,11 @@ val HideTelegramSponsoredProxy = patch(
     }
 
     // 2. Hide sponsored proxy dialog from custom DialogFilter folder rebuilds
+    // Telegram 13.3.1 added a trailing boolean parameter to DialogFilter.includesDialog.
     runCatching {
         val dialogFilterClass = classLoader.loadClass("org.telegram.messenger.MessagesController\$DialogFilter")
         val accountInstanceClass = classLoader.loadClass("org.telegram.messenger.AccountInstance")
-        val includesDialog = dialogFilterClass.getDeclaredMethod(
-            "includesDialog",
-            accountInstanceClass,
-            Long::class.javaPrimitiveType,
-            dialogClass
-        )
-        XposedBridge.hookMethod(includesDialog, object : XC_MethodHook() {
+        val includesHook = object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 if (param.result != true) return
                 val controller = param.args?.getOrNull(0)?.callMethodOrNull("getMessagesController") ?: return
@@ -90,6 +85,14 @@ val HideTelegramSponsoredProxy = patch(
                     param.result = false
                 }
             }
-        })
+        }
+        dialogFilterClass.declaredMethods.filter { m ->
+            m.name == "includesDialog" && m.returnType == Boolean::class.javaPrimitiveType &&
+                m.parameterTypes.size in 3..4 &&
+                m.parameterTypes[0] == accountInstanceClass &&
+                m.parameterTypes[1] == Long::class.javaPrimitiveType &&
+                m.parameterTypes[2] == dialogClass &&
+                (m.parameterTypes.size == 3 || m.parameterTypes[3] == Boolean::class.javaPrimitiveType)
+        }.forEach { XposedBridge.hookMethod(it, includesHook) }
     }
 }

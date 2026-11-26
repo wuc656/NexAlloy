@@ -2,6 +2,7 @@ package io.github.nexalloy.morphe.instagram.ads
 
 import io.github.nexalloy.morphe.Opcode
 import io.github.nexalloy.morphe.findFieldDirect
+import io.github.nexalloy.morphe.findFieldListDirect
 import io.github.nexalloy.morphe.findMethodDirect
 import io.github.nexalloy.morphe.findMethodListDirect
 import io.github.nexalloy.morphe.opcodeEnum
@@ -58,32 +59,52 @@ val mediaAdDetailsGetter = findMethodDirect {
     }
 }
 
-/**
- * Boolean field in Instagram's comments-sheet settings serialized into Bundle under "enable_comment_ads".
- */
-val commentAdsFlagField = findFieldDirect {
+private val COMMENT_CARD_TYPE_KEYS = listOf("ad_card_type", "organic_card_type")
+
+private fun org.luckypray.dexkit.DexKitBridge.findBundlePutFields(
+    key: String,
+    putMethodName: String,
+    getOpcode: Opcode,
+): List<org.luckypray.dexkit.result.FieldData> {
     val methods = findMethod {
         matcher {
-            strings("enable_comment_ads")
+            strings(key)
         }
     }
-    methods.firstNotNullOf { method ->
+    return methods.mapNotNull { method ->
         val code = method.instructions.toList()
         var found: org.luckypray.dexkit.result.FieldData? = null
         for (at in code.indices) {
-            if (code[at].string != "enable_comment_ads") continue
+            if (code[at].string != key) continue
             val callIdx = ((at + 1)..minOf(code.lastIndex, at + 12)).firstOrNull { i ->
                 val ref = code[i].methodRef ?: return@firstOrNull false
-                ref.name == "putBoolean" && ref.declaredClassName in BUNDLE_CLASSES
+                ref.name == putMethodName && ref.declaredClassName in BUNDLE_CLASSES
             } ?: continue
             val getIdx = (callIdx - 1 downTo maxOf(0, callIdx - 8)).firstOrNull { i ->
-                code[i].opcodeEnum == Opcode.IGET_BOOLEAN
+                code[i].opcodeEnum == getOpcode
             } ?: continue
             found = code[getIdx].fieldRef
             if (found != null) break
         }
         found
     }
+}
+
+/**
+ * Boolean field in Instagram's comments-sheet settings serialized into Bundle under "enable_comment_ads".
+ */
+val commentAdsFlagField = findFieldDirect {
+    findBundlePutFields("enable_comment_ads", "putBoolean", Opcode.IGET_BOOLEAN).first()
+}
+
+/**
+ * String fields in Instagram's comments-sheet settings holding top card types
+ * ("ad_card_type" / "organic_card_type").
+ */
+val commentCardTypeFields = findFieldListDirect {
+    COMMENT_CARD_TYPE_KEYS.flatMap { key ->
+        findBundlePutFields(key, "putString", Opcode.IGET_OBJECT)
+    }.distinctBy { it.descriptor }
 }
 
 /**

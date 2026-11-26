@@ -101,4 +101,23 @@ val HideInstagramAds = patch(
             )
         }
     }
+
+    // 3c. Clear shop/ad card fields above comments ("ad_card_type", "organic_card_type")
+    runCatching {
+        val cardFields = ::commentCardTypeFields.fieldList.onEach { it.isAccessible = true }
+        cardFields.groupBy { it.declaringClass }.forEach { (ownerClass, fields) ->
+            XposedBridge.hookAllConstructors(ownerClass, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    fields.forEach { f ->
+                        runCatching {
+                            if (f.get(param.thisObject) != null) {
+                                f.set(param.thisObject, null)
+                                Logger.printDebug { "HushGram: Cleared comment sheet card field ${f.name}" }
+                            }
+                        }
+                    }
+                }
+            })
+        }
+    }
 }
