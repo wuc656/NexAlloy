@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "io.github.chsbuffer.revancedxposed"
-        versionCode = 113
+        versionCode = 114
         versionName = "2.0.$versionCode"
         val patchVersion = Properties().apply {
             rootProject.file("morphe-patches/gradle.properties").inputStream().use { load(it) }
@@ -163,6 +163,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.fuel)
     implementation(platform(libs.okhttp.bom))
+    implementation(libs.okhttp.client)
+    implementation(libs.okhttp.coroutines)
     testImplementation(kotlin("test-junit5"))
     testImplementation(libs.junit.jupiter.params)
     testImplementation(libs.jadx.core)
