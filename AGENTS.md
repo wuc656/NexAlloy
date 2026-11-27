@@ -39,9 +39,12 @@
   - `morphe/`: Ported patches grouped by target app (`youtube`, `facebook`, `instagram`, `threads`, `telegram`, `twitch`, `messenger`, `shared`).
 - `morphe-patches` & `morphe-patches-library`: Git submodules integrating Morphe upstream assets and stubs.
 - `.github/workflows/`:
-  - `release.yml`: Release CI triggered on pushing tags matching `*.*.*` or manual `workflow_dispatch`.
+  - `release.yml`: Release CI triggered on pushing tags matching `*.*.*` or manual `workflow_dispatch` (publishes non-prerelease GitHub releases for `UpdateChecker` `/releases/latest`).
   - `android.yml`: Nightly/branch CI triggered on push to `main` or manual `workflow_dispatch`.
   - Upstream `release-pr.yml` is intentionally removed (fork uses tag-triggered `release.yml`); delete it again if an upstream merge re-adds it.
+- In-app Updater (`common/UpdateChecker.kt` & `app/build.gradle.kts`):
+  - Points `OWNER` to `wuc656` (`REPO = "NexAlloy"`).
+  - Embeds `BuildConfig.RELEASE_TAG` (`GITHUB_REF_NAME` or `git describe --tags --abbrev=0`) and sets `versionName` to `2.0.<versionCode>-<releaseTag>` without bumping `versionCode`; compares `v1.0.<N>-test` tag numbers cleanly.
 
 ## Build & Test Commands
 ```bash

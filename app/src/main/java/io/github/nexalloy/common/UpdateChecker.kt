@@ -49,7 +49,8 @@ data class ReleaseInfo(
     fun getUpdateVersion(
         checkBetaUpdates: Boolean,
         currentVersionCode: Int,
-        currentCommit: String
+        currentCommit: String,
+        currentReleaseTag: String = BuildConfig.RELEASE_TAG
     ): String? {
         if (checkBetaUpdates) {
             val apk = checkNotNull(getApkAsset(true)) {
@@ -59,12 +60,22 @@ data class ReleaseInfo(
             return "Nightly build ($commit)".takeIf { commit != currentCommit }
         }
 
+        val remoteForkNum = parseForkTagNumber(tagName)
+        if (remoteForkNum != null) {
+            val localForkNum = parseForkTagNumber(currentReleaseTag) ?: 0
+            return tagName.takeIf { remoteForkNum > localForkNum }
+        }
+
         val version = VersionInfo.fromTagName(tagName)
         return version.versionName.takeIf { version.versionCode > currentVersionCode }
     }
 
     private companion object {
         val nightlyApkName = Regex("""NexAlloy-.+\.apk""")
+        val forkTagRegex = Regex("""^v1\.0\.(\d+)(?:-test)?$""")
+
+        fun parseForkTagNumber(tag: String): Int? =
+            forkTagRegex.matchEntire(tag)?.groupValues?.get(1)?.toIntOrNull()
     }
 }
 
@@ -95,7 +106,7 @@ data class VersionInfo(val versionCode: Int, val versionName: String) {
     }
 }
 
-const val OWNER = "NexAlloy"
+const val OWNER = "wuc656"
 const val REPO = "NexAlloy"
 const val currentVersionCode = BuildConfig.VERSION_CODE
 const val CHECK_BETA_UPDATES = "check_beta_updates"
@@ -167,7 +178,7 @@ class UpdateChecker(
                 Logger.printDebug { content }
                 val release = Gson().fromJson(content, ReleaseInfo::class.java)
                 val updateVersion = release.getUpdateVersion(
-                    betaUpdates, currentVersionCode, BuildConfig.COMMIT_HASH
+                    betaUpdates, currentVersionCode, BuildConfig.COMMIT_HASH, BuildConfig.RELEASE_TAG
                 )
                 if (updateVersion != null) {
                     Logger.printInfo { "Found new version of NexAlloy $updateVersion" }

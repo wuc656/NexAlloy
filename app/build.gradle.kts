@@ -22,19 +22,31 @@ val gitCommitDateProvider = providers.exec {
     workingDir = rootProject.rootDir
 }.standardOutput.asText!!
 
+val gitDescribeTagProvider = providers.exec {
+    commandLine("git", "describe", "--tags", "--abbrev=0")
+    workingDir = rootProject.rootDir
+    isIgnoreExitValue = true
+}.standardOutput.asText!!
+
+val githubRefNameProvider = providers.environmentVariable("GITHUB_REF_NAME")
+
 android {
     namespace = "io.github.nexalloy"
 
     defaultConfig {
+        val envTag = githubRefNameProvider.orNull?.trim()
+            ?.takeIf { it.isNotEmpty() && it != "main" && it != "HEAD" }
+        val releaseTag = envTag ?: gitDescribeTagProvider.get().trim()
         applicationId = "io.github.chsbuffer.revancedxposed"
         versionCode = 114
-        versionName = "2.0.$versionCode"
+        versionName = if (releaseTag.isNotEmpty()) "2.0.$versionCode-$releaseTag" else "2.0.$versionCode"
         val patchVersion = Properties().apply {
             rootProject.file("morphe-patches/gradle.properties").inputStream().use { load(it) }
         }["version"]
         buildConfigField("String", "PATCH_VERSION", "\"$patchVersion\"")
         buildConfigField("String", "COMMIT_HASH", "\"${gitCommitHashProvider.get().trim()}\"")
         buildConfigField("long", "COMMIT_DATE", "${gitCommitDateProvider.get().trim()}L")
+        buildConfigField("String", "RELEASE_TAG", "\"$releaseTag\"")
     }
     androidResources {
         additionalParameters += arrayOf("--allow-reserved-package-id", "--package-id", "0x4b")
