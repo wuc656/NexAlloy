@@ -38,7 +38,7 @@ import kotlin.random.Random
 
 data class ReleaseInfo(
     @SerializedName("tag_name") val tagName: String,
-    @SerializedName("body_html") val releaseNoteHtml: String,
+    @SerializedName("body_html") val releaseNoteHtml: String? = null,
     @SerializedName("html_url") val releaseUrl: String,
     @SerializedName("assets") val assets: List<ReleaseAsset> = emptyList()
 ) {
@@ -269,7 +269,9 @@ internal fun releaseDialog(
     CustomDialog.create(
         activity,
         "Found new version of NexAlloy $versionName",
-        Html.fromHtml(release.releaseNoteHtml, Html.FROM_HTML_MODE_LEGACY).trimEnd(),
+        release.releaseNoteHtml?.takeIf { it.isNotBlank() }?.let {
+            Html.fromHtml(it, Html.FROM_HTML_MODE_LEGACY).trimEnd()
+        },
         null,
         primaryText,
         onPrimaryClick,
