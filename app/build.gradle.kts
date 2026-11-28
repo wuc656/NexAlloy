@@ -39,7 +39,7 @@ android {
         val releaseTag = envTag ?: gitDescribeTagProvider.get().trim()
         applicationId = "io.github.chsbuffer.revancedxposed"
         versionCode = 114
-        versionName = if (releaseTag.isNotEmpty()) "2.0.$versionCode-$releaseTag" else "2.0.$versionCode"
+        versionName = "2.0.$versionCode"
         val patchVersion = Properties().apply {
             rootProject.file("morphe-patches/gradle.properties").inputStream().use { load(it) }
         }["version"]

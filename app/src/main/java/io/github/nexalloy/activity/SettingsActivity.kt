@@ -206,8 +206,9 @@ class SettingsActivity : Activity(), SettingApplication.ServiceStateListener {
 
             Preference(context).apply {
                 setTitle(R.string.check_for_update_title)
+                val tagSuffix = BuildConfig.RELEASE_TAG.takeIf { it.isNotEmpty() }?.let { " [$it]" } ?: ""
                 summary =
-                    """Current version: ${BuildConfig.VERSION_NAME} (${BuildConfig.COMMIT_HASH}) ${BuildConfig.BUILD_TYPE}
+                    """Current version: ${BuildConfig.VERSION_NAME}$tagSuffix (${BuildConfig.COMMIT_HASH}) ${BuildConfig.BUILD_TYPE}
                        |Build Date: ${DateUtils.getRelativeTimeSpanString(BuildConfig.COMMIT_DATE * 1000)}""".trimMargin()
                 setOnPreferenceClickListener {
                     updateChecker.checkUpdate(silent = false)
